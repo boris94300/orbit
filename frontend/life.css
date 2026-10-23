@@ -203,3 +203,25 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
 .ao-c .btns button:not(.primary-sm){color:var(--tx3)}
 .ao-c .ok{color:var(--good)}.ao-c .no{color:var(--tx3)}
 .ao-none{font-size:13px;color:var(--tx3)}
+@media (max-width:760px){
+  .nav{padding:0 14px}
+  .logo{font-size:15px}
+  #me-name,.foot{display:none}
+  #tabs button{font-size:12px;padding:6px 9px;white-space:nowrap}
+  #v-vie.on{display:flex;flex-direction:column;padding:0 18px 20px;overflow-y:auto}
+  .stage{height:44vh;flex:none}
+  .age-tag{top:14px}
+  .age{font-size:54px}
+  .side{padding-top:6px}
+  .big{font-size:40px}
+  .facts{grid-template-columns:1fr 1fr}
+  .timeline{position:sticky;bottom:0;background:var(--bg);padding:8px 0}
+  .ticks button small{display:none}
+  .ticks button:nth-child(even){display:none}
+  #v-choix.on{display:block;padding:24px 18px}
+  #v-agents.on{padding:24px 18px;overflow-y:auto}
+  .a-top{flex-direction:column;align-items:flex-start}
+  .a-grid{display:flex;flex-direction:column}
+  .a-log{max-height:60vh}
+  .ev{grid-template-columns:1fr;gap:2px}
+}
