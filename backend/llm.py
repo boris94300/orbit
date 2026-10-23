@@ -23,7 +23,15 @@ def mode():
 
 
 def numbers(s):
-    return {re.sub(r"[\s\u202f\u00a0]", "", n).replace(",", ".") for n in re.findall(r"\d[\d\s\u202f\u00a0.,]*\d|\d", s)}
+    out = set()
+    for n, k in re.findall(r"(\d[\d\s\u202f\u00a0.,]*\d|\d)(\s?k€)?", s):
+        n = re.sub(r"[\s\u202f\u00a0]", "", n).replace(",", ".")
+        try:
+            v = float(n) * (1000 if k else 1)
+            out.add(f"{v:g}" if v != int(v) else str(int(v)))
+        except ValueError:
+            out.add(n)
+    return out
 
 
 def guard(src, out):
@@ -68,14 +76,23 @@ def _key():
     return os.environ["MISTRAL_API_KEY"]
 
 
+MODELS = ["mistral-small-latest", "open-mistral-nemo", "ministral-8b-latest"]
+
+
 async def mistral(messages, tools=None, temperature=0.2):
-    body = {"model": os.getenv("MISTRAL_MODEL", "mistral-small-latest"), "messages": messages, "temperature": temperature}
-    if tools:
-        body["tools"], body["tool_choice"] = tools, "auto"
+    first = os.getenv("MISTRAL_MODEL")
+    models = ([first] if first else []) + [m for m in MODELS if m != first]
     async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post("https://api.mistral.ai/v1/chat/completions", headers={"Authorization": "Bearer " + _key()}, json=body)
-        r.raise_for_status()
-        return r.json()
+        for i, model in enumerate(models):
+            body = {"model": model, "messages": messages, "temperature": temperature}
+            if tools:
+                body["tools"], body["tool_choice"] = tools, "auto"
+            r = await c.post("https://api.mistral.ai/v1/chat/completions", headers={"Authorization": "Bearer " + _key()}, json=body)
+            if r.status_code in (403, 429) and i < len(models) - 1:
+                print(f"mistral {model}: HTTP {r.status_code}, modèle suivant", flush=True)
+                continue
+            r.raise_for_status()
+            return r.json()
 
 
 async def write(text):

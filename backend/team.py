@@ -188,11 +188,18 @@ TOOLS = [
          "age_retraite": {"type": "number"},
          "achat_prix": {"type": "number", "description": "prix d'un logement à acheter, en euros"},
          "achat_dans_ans": {"type": "number", "description": "achat dans combien d'années"},
-         "achat_apport": {"type": "number", "description": "apport en euros"}}}}},
+         "achat_apport": {"type": "number", "description": "apport en euros"},
+         "objectif_eur_mois": {"type": "number", "description": "revenu visé à la retraite, si différent de l'objectif du profil"}}}}},
+    {"type": "function", "function": {"name": "epargne_necessaire", "description": "Calcule l'épargne mensuelle minimale pour atteindre un revenu visé à la retraite avec une probabilité donnée.",
+     "parameters": {"type": "object", "properties": {
+         "objectif_eur_mois": {"type": "number"}, "chances_pct": {"type": "number", "description": "probabilité visée, 50 par défaut"},
+         "age_retraite": {"type": "number"}}, "required": ["objectif_eur_mois"]}}},
 ]
 ASK = ("Tu es le Conseiller d'Orbit, une app bancaire qui projette l'avenir financier d'un particulier. Tu tutoies, en français simple. "
        "Pour tout chiffre, appelle l'outil simuler : n'invente jamais un nombre, utilise uniquement ceux du profil ou de l'outil. "
-       "4 phrases maximum, sans titre ni emoji ni liste. Termine par ce que tu conseilles de faire. Tu ne passes aucun ordre réel.")
+       "Si tu suggères un levier (épargne, âge, actions), simule-le d'abord et cite son effet ; n'affirme aucun effet non calculé. "
+       "Un taux d'endettement est acceptable jusqu'à 35 %. 4 phrases maximum, texte brut sans markdown, sans titre ni emoji ni liste. "
+       "Termine par ce que tu conseilles de faire. Tu ne passes aucun ordre réel.")
 
 
 def simulate(p, a):
@@ -205,16 +212,37 @@ def simulate(p, a):
         if p["housing"] != "locataire":
             over["housing"] = "locataire"
     q = life.merge(p, over)
-    g = p.get("goal_month") or 0
+    g = a.get("objectif_eur_mois") or p.get("goal_month") or 0
     st, base = _stats(q, g), _stats(p, g)
     v, why = guard(p, {"profile": q})
-    out = {"chances_objectif_pct": round(st["prob"] * 100), "objectif_eur_mois": g, "revenu_median_retraite_eur_mois": round(st["med"]),
+    out = {"chances_objectif_pct": round(st["prob"] * 100), "chances_situation_actuelle_pct": round(base["prob"] * 100), "revenu_median_situation_actuelle_eur_mois": round(base["med"]), "objectif_eur_mois": g, "revenu_median_retraite_eur_mois": round(st["med"]),
            "patrimoine_median_retraite_eur": round(st["net"], -3), "ecart_vs_aujourdhui_eur": round(st["net"] - base["net"], -3), "age_retraite": q["retire_age"],
            "controle": {"ok": "validé", "warn": "validé avec réserve", "block": "bloqué"}[v], "raisons": why}
     if q["buy"]["enabled"]:
         pay = life._payment(q["buy"]["price"] - q["buy"]["down"], q["buy"]["rate"], q["buy"]["years"])
+        out["note"] = f"Le logement acheté n'est pas compté dans ce revenu : à la retraite, plus de loyer à payer ({round(p['rent_month'])} €/mois aujourd'hui) et un bien de {round(q['buy']['price'])} € en patrimoine."
         out.update(mensualite_credit_eur=round(pay), taux_endettement_pct=round(pay / max(1, q["income_month"]) * 100), taux_credit_pct=q["buy"]["rate"], duree_ans=q["buy"]["years"])
     return out
+
+
+def needed(p, a):
+    g, target = a.get("objectif_eur_mois") or p.get("goal_month") or 0, (a.get("chances_pct") or 50) / 100
+    q0 = life.merge(p, {"retire_age": a["age_retraite"]}) if a.get("age_retraite") else p
+    if not g:
+        return {"erreur": "objectif manquant"}
+    prob = lambda sv: _stats(life.merge(q0, {"savings_month": sv}), g)["prob"]
+    lo, hi = 0, 20000
+    if prob(hi) < target:
+        return {"objectif_eur_mois": g, "atteignable": False, "message": "objectif hors de portée même avec 20 000 €/mois"}
+    while hi - lo > 10:
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if prob(mid) >= target else (mid, hi)
+    sv = round(hi / 10) * 10
+    q = life.merge(q0, {"savings_month": sv})
+    v, why = guard(p, {"profile": q})
+    return {"objectif_eur_mois": g, "chances_pct": round(target * 100), "age_retraite": q["retire_age"], "epargne_necessaire_eur_mois": sv,
+            "epargne_actuelle_eur_mois": round(p["savings_month"]), "effort_supplementaire_eur_mois": round(sv - p["savings_month"]),
+            "part_des_revenus_pct": round(sv / max(1, p["income_month"]) * 100), "controle": {"ok": "validé", "warn": "validé avec réserve", "block": "bloqué"}[v], "raisons": why}
 
 
 def _profile_text(p):
@@ -233,7 +261,7 @@ async def ask(p, question, history_msgs=None):
         calls = m.get("tool_calls") or []
         if not calls:
             src = _profile_text(p) + json.dumps([t["result"] for t in trace], ensure_ascii=False)
-            ans = (m.get("content") or "").strip()
+            ans = (m.get("content") or "").replace("**", "").replace("__", "").strip()
             return {"answer": ans, "trace": trace, "checked": llm.guard(src + question, ans), "ms": round((time.perf_counter() - t0) * 1000), "model": d.get("model")}
         msgs.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
         for c in calls:
@@ -241,7 +269,7 @@ async def ask(p, question, history_msgs=None):
                 args = json.loads(c["function"]["arguments"] or "{}")
             except Exception:
                 args = {}
-            res = simulate(p, args)
+            res = needed(p, args) if c["function"]["name"] == "epargne_necessaire" else simulate(p, args)
             trace.append({"tool": c["function"]["name"], "args": args, "result": res})
             msgs.append({"role": "tool", "name": c["function"]["name"], "content": json.dumps(res, ensure_ascii=False), "tool_call_id": c["id"]})
     return {"answer": "Je n'ai pas réussi à conclure, reformule ta question.", "trace": trace, "checked": True, "ms": 0}
