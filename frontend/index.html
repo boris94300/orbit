@@ -5,174 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orbit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/life.css">
+<script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js"}}</script>
+<script src="/static/vendor/d3.min.js"></script>
+<script src="/static/vendor/gsap.min.js"></script>
 </head>
 <body>
-<div id="boot">
-  <div class="boot-inner">
-    <div class="boot-mark">ORBIT</div>
-    <div class="boot-lines" id="boot-lines"></div>
-  </div>
-</div>
-
-<header class="topbar">
-  <div class="brand"><span class="brand-mark"></span>ORBIT<span class="brand-env">démo</span></div>
-  <div class="ticker"><div class="ticker-track" id="ticker"></div></div>
-  <div class="top-right">
-    <div class="feeds-status" id="feeds-status" title="État des flux">—</div>
-    <div class="clock mono" id="clock">--:--:--</div>
-  </div>
+<header class="nav">
+  <div class="logo"><span class="dot"></span>Orbit</div>
+  <nav id="tabs">
+    <button data-v="vie" class="on">Ma vie</button>
+    <button data-v="choix">Mes choix</button>
+    <button data-v="agents">Agents</button>
+    <button data-v="profil">Profil</button>
+  </nav>
+  <div class="me"><span id="me-name">Camille Moreau</span><span class="ini" id="me-ini">CM</span></div>
 </header>
 
-<nav class="rail">
-  <button class="rail-btn active" data-view="monde" title="Monde">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
-    <span>Monde</span></button>
-  <button class="rail-btn" data-view="portefeuille" title="Portefeuille">
-    <svg viewBox="0 0 24 24"><path d="M12 3v9h9"/><path d="M20.5 15A9 9 0 1 1 9 3.5"/></svg>
-    <span>Portefeuille</span></button>
-  <button class="rail-btn" data-view="horizon" title="Horizon 60">
-    <svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/></svg>
-    <span>Horizon 60</span></button>
-  <button class="rail-btn" data-view="agents" title="Agents">
-    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="9" y="14" width="6" height="6"/><path d="M7 10v2h10v-2M12 12v2"/></svg>
-    <span>Agents</span></button>
-  <button class="rail-btn" data-view="conseiller" title="Conseiller">
-    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .7 3.2 2.4 3.6 5.2"/></svg>
-    <span>Conseiller</span></button>
-</nav>
-
-<main id="main">
-  <div id="globe-wrap"><div id="globe"></div>
-    <div class="globe-legend" id="globe-legend">
-      <span><i class="dot up"></i>Marché en hausse</span><span><i class="dot down"></i>Marché en baisse</span>
-      <span><i class="dot quake"></i>Séisme M4.5+</span><span><i class="dot nat"></i>Événement naturel</span>
-      <span><i class="dot news"></i>Actualité éco.</span><span><i class="dot arc"></i>Lien vers le portefeuille</span>
+<main>
+  <section class="view on" id="v-vie">
+    <div class="stage">
+      <canvas id="avatar"></canvas>
+      <div class="age-tag"><div class="age"><span id="age">32</span><small>ans</small></div><div class="yr" id="yr">2026</div></div>
+      <div class="loading" id="av-load">Chargement</div>
     </div>
-  </div>
-
-  <section class="view active" id="view-monde">
-    <aside class="panel left">
-      <div class="panel-h">Marchés actions <span class="src" id="src-markets"></span></div>
-      <div id="markets" class="list"></div>
-      <div class="panel-h">Taux et macro <span class="src" id="src-rates"></span></div>
-      <div id="rates" class="list"></div>
-      <div class="panel-h">Matières premières et changes <span class="src" id="src-cmd"></span></div>
-      <div id="commodities" class="list"></div>
-    </aside>
-    <aside class="panel right">
-      <div class="panel-h">Fil des événements <span class="count mono" id="ev-count"></span></div>
-      <div class="filters" id="filters">
-        <button class="on" data-f="all">Tous</button><button data-f="marche">Marchés</button>
-        <button data-f="news">Actualités</button><button data-f="quake">Séismes</button><button data-f="nat">Climat</button>
+    <div class="side">
+      <div class="eyebrow" id="when">Aujourd'hui</div>
+      <div class="big" id="net">—</div>
+      <div class="sub">Patrimoine net, en euros d'aujourd'hui</div>
+      <div class="seg" id="seg">
+        <button data-s="bad">Défavorable</button><button data-s="mid" class="on">Médian</button><button data-s="good">Favorable</button>
+        <i class="seg-k"></i>
       </div>
-      <div id="events" class="events"></div>
-    </aside>
-  </section>
-
-  <section class="view" id="view-portefeuille">
-    <div class="pf scroll">
-      <div class="pf-head">
-        <div><div class="ph-k mono" id="pf-id"></div><h2 id="pf-name">Portefeuille</h2><div class="pf-sub" id="pf-sub"></div></div>
-        <div class="kpis" id="pf-kpis"></div>
-      </div>
-      <div class="pf-grid">
-        <div class="card pos"><div class="card-h">Positions <span class="src" id="pf-src"></span></div><table class="tbl" id="pf-table"></table></div>
-        <div class="card"><div class="card-h">Allocation par classe d'actifs</div><div class="donut-wrap"><svg id="pf-donut"></svg><div class="donut-legend" id="pf-alloc"></div></div></div>
-        <div class="card"><div class="card-h">Exposition géographique · actifs financiers</div><div id="pf-regions"></div>
-          <div class="card-h sub">Risques recensés · Créteil <span class="src" id="pf-risk-src"></span></div><div id="pf-risks" class="chips"></div></div>
-        <div class="card wide"><div class="card-h">Graphe d'exposition · événements du jour → positions → enveloppes <span class="src">survol pour isoler · clic pour localiser</span></div><div id="pf-graph"></div></div>
-        <div class="card wide"><div class="card-h">Expositions détaillées <span class="src" id="pf-exp-n"></span></div><table class="tbl" id="pf-exp"></table></div>
-      </div>
+      <div class="replay" id="replay"></div>
+      <svg id="chart"></svg>
+      <div class="facts" id="facts"></div>
+      <p class="story" id="story"></p>
+    </div>
+    <div class="timeline">
+      <div class="tl-track"><input type="range" id="t" min="0" max="60" step="0.01" value="0"></div>
+      <div class="ticks" id="ticks"></div>
     </div>
   </section>
-  <section class="view" id="view-horizon">
-    <div class="pf scroll">
-      <div class="pf-head">
-        <div>
-          <div class="ph-k mono" id="hz-k">Horizon 60 · projection Monte-Carlo · euros constants</div>
-          <h2>Patrimoine financier à la retraite</h2>
-          <div class="pf-sub" id="hz-sub"></div>
-        </div>
-      </div>
-      <div class="hz-grid">
-        <div>
-          <div class="card ctl">
-            <div class="card-h">Paramètres</div>
-            <label>Épargne mensuelle <b id="v-savings"></b></label><input type="range" id="s-savings" min="0" max="2000" step="25" value="650">
-            <label>Âge de départ <b id="v-retire_age"></b></label><input type="range" id="s-retire_age" min="58" max="67" step="1" value="60">
-            <label>Part actions <b id="v-equity"></b></label><input type="range" id="s-equity" min="10" max="90" step="5" value="55">
-            <label>Objectif de capital <b id="v-target"></b></label><input type="range" id="s-target" min="200000" max="800000" step="10000" value="420000">
-          </div>
-          <div class="card" style="margin-top:14px">
-            <div class="card-h">Hypothèses de marché</div>
-            <table class="tbl hyp" id="hz-hyp"></table>
-            <div class="hz-live mono" id="hz-live"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-h">Trajectoires simulées · capital financier <span class="src" id="hz-n"></span></div>
-          <div id="hz-chart"></div>
-          <div class="hz-leg"><span><i class="l95"></i>90 % des scénarios</span><span><i class="l50"></i>50 % des scénarios</span><span><i class="lmed"></i>Médiane</span><span><i class="ltg"></i>Objectif</span></div>
-        </div>
-        <div>
-          <div class="card hz-prob"><div class="card-h">Probabilité d'atteindre l'objectif</div><div class="big mono" id="hz-prob">—</div><div class="s mono" id="hz-prob-s"></div><div class="pbar"><i id="hz-pbar"></i></div></div>
-          <div class="card hz-k" id="hz-kpis" style="margin-top:14px"></div>
-          <div class="card" style="margin-top:14px"><div class="card-h">Leviers · effet sur la médiane</div><div id="hz-sens"></div></div>
-        </div>
-        <div class="card wide"><div class="card-h">Note de projection <span class="src" id="hz-note-src"></span></div><div class="brief" id="hz-brief"></div></div>
-      </div>
-    </div>
-  </section>
-  <section class="view" id="view-agents">
-    <div class="pf scroll">
-      <div class="pf-head">
-        <div>
-          <div class="ph-k mono">Orchestration · 6 agents · supervision humaine</div>
-          <h2>Agents et journal d'audit</h2>
-          <div class="pf-sub" id="ag-sub">Les agents calculent et proposent. Aucune opération n'est exécutée sans contrôle de conformité et validation du client.</div>
-        </div>
-        <div class="ag-ctl"><span class="mono" id="ag-mode"></span><button class="btn" id="ag-run">Lancer un cycle d'analyse</button></div>
-      </div>
-      <div class="pipe" id="ag-pipe"></div>
-      <div class="ag-grid">
-        <div class="card"><div class="card-h">Opérations proposées <span class="src" id="ag-pn"></span></div><div id="ag-props"><div class="empty">Aucun cycle exécuté. Lancez une analyse pour générer des propositions.</div></div></div>
-        <div>
-          <div class="card"><div class="card-h">Mandat de gestion <span class="src" id="ag-mid"></span></div><div id="ag-mandate"></div></div>
-          <div class="card" style="margin-top:14px"><div class="card-h">Note client · moi à 60 ans <span class="src" id="ag-note-src"></span></div><div class="brief" id="ag-note"><span class="empty">—</span></div></div>
-        </div>
-        <div class="card wide"><div class="card-h">Journal d'audit <span class="src">entrées chaînées par empreinte SHA-256 · <span id="ag-ln"></span></span></div><table class="tbl log" id="ag-log"></table></div>
-      </div>
-    </div>
-  </section>
-  <section class="view" id="view-conseiller">
-    <div class="pf scroll">
-      <div class="pf-head">
-        <div>
-          <div class="ph-k mono" id="cs-k">Vue conseiller</div>
-          <h2 id="cs-h">Clients à contacter</h2>
-          <div class="pf-sub">File de priorité recalculée à chaque cycle de données. Les motifs sont déterministes et les messages sont soumis au conseiller avant tout envoi.</div>
-        </div>
-        <div class="kpis" id="cs-kpis"></div>
-      </div>
-      <div class="ag-grid">
-        <div class="card"><div class="card-h">File de priorité <span class="src" id="cs-n"></span></div><table class="tbl cs" id="cs-table"></table></div>
-        <div>
-          <div class="card"><div class="card-h">Message préparé <span class="src" id="cs-who"></span></div><div id="cs-msg"><div class="empty">Sélectionnez un client.</div></div></div>
-          <div class="card" style="margin-top:14px"><div class="card-h">Événements du jour · exposition de l'agence</div><div id="cs-ev"></div></div>
-          <div class="card" style="margin-top:14px"><div class="card-h">Motifs de contact</div><div id="cs-kinds"></div></div>
-        </div>
-      </div>
-    </div>
-  </section>
-  <aside id="inv"><div class="inv-tabs" id="inv-tabs"></div><div class="inv-body scroll" id="inv-body"></div></aside>
+  <section class="view" id="v-choix"><div class="soon">Mes choix · en construction</div></section>
+  <section class="view" id="v-agents"><div class="soon">Agents en direct · en construction</div></section>
+  <section class="view" id="v-profil"><div class="soon">Profil · en construction</div></section>
 </main>
-
-<script src="/static/vendor/gsap.min.js"></script>
-<script src="/static/vendor/d3.min.js"></script>
-<script src="/static/vendor/topojson-client.min.js"></script>
-<script src="/static/vendor/globe.gl.min.js"></script>
-<script src="/static/app.js"></script>
+<footer class="foot" id="foot"></footer>
+<script type="module" src="/static/life.js"></script>
 </body>
 </html>
