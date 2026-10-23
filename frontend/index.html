@@ -146,7 +146,27 @@
       </div>
     </div>
   </section>
-  <section class="view" id="view-conseiller"><div class="placeholder"><div class="ph-k">Étape 5</div><h2>Vue conseiller</h2><p>Clients de l'agence exposés à un événement, priorisation et messages préparés.</p></div></section>
+  <section class="view" id="view-conseiller">
+    <div class="pf scroll">
+      <div class="pf-head">
+        <div>
+          <div class="ph-k mono" id="cs-k">Vue conseiller</div>
+          <h2 id="cs-h">Clients à contacter</h2>
+          <div class="pf-sub">File de priorité recalculée à chaque cycle de données. Les motifs sont déterministes et les messages sont soumis au conseiller avant tout envoi.</div>
+        </div>
+        <div class="kpis" id="cs-kpis"></div>
+      </div>
+      <div class="ag-grid">
+        <div class="card"><div class="card-h">File de priorité <span class="src" id="cs-n"></span></div><table class="tbl cs" id="cs-table"></table></div>
+        <div>
+          <div class="card"><div class="card-h">Message préparé <span class="src" id="cs-who"></span></div><div id="cs-msg"><div class="empty">Sélectionnez un client.</div></div></div>
+          <div class="card" style="margin-top:14px"><div class="card-h">Événements du jour · exposition de l'agence</div><div id="cs-ev"></div></div>
+          <div class="card" style="margin-top:14px"><div class="card-h">Motifs de contact</div><div id="cs-kinds"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <aside id="inv"><div class="inv-tabs" id="inv-tabs"></div><div class="inv-body scroll" id="inv-body"></div></aside>
 </main>
 
 <script src="/static/vendor/gsap.min.js"></script>

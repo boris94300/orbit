@@ -235,7 +235,7 @@ function renderEvents() {
   const all = events(), list = all.filter((e) => filter === "all" || e.kind === filter).slice(0, 80);
   $("#ev-count").textContent = `${list.length} / ${all.length}`;
   const box = $("#events"), known = new Set($$(".ev", box).map((e) => e.dataset.id));
-  box.innerHTML = list.length ? list.map((e) => `<div class="ev k-${e.kind}${e.id === selected ? " sel" : ""}" data-id="${esc(e.id)}"><div class="bar"></div><div><div class="meta"><span>${esc(e.src)}</span><span>${e.time ? ago(e.time) : ""}</span></div><div class="t">${esc(e.t)}${impTag(e.id)}</div><div class="sub">${esc(e.sub || "")}</div></div></div>`).join("") : `<div class="empty">Aucun événement pour ce filtre.</div>`;
+  box.innerHTML = list.length ? list.map((e) => `<div class="ev k-${e.kind}${e.id === selected ? " sel" : ""}" data-id="${esc(e.id)}"><div class="bar"></div><div><div class="meta"><span>${esc(e.src)}</span><span>${e.time ? ago(e.time) : ""}</span></div><div class="t">${esc(e.t)}${impTag(e.id)}</div>${pf && pf.exposures.some((x) => x.event_id === e.id) ? `<button class="open" data-inv="${esc(e.id)}">Ouvrir l'enquête →</button>` : ""}<div class="sub">${esc(e.sub || "")}</div></div></div>`).join("") : `<div class="empty">Aucun événement pour ce filtre.</div>`;
   if (known.size) {
     const fresh = $$(".ev", box).filter((e) => !known.has(e.dataset.id));
     if (fresh.length) gsap.from(fresh, { opacity: 0, x: 12, duration: 0.35, stagger: 0.04, ease: "power2.out" });
@@ -535,6 +535,72 @@ $("#ag-props").addEventListener("click", async (ev) => {
   }
 });
 
+/* ---------- conseiller ---------- */
+let cs = null, csSel = null;
+const KIND = { crypto: "Concentration crypto", alloc: "Allocation hors profil", retraite: "Objectif retraite à risque", marche: "Sensibilité au marché du jour", mifid: "MiFID à renouveler" };
+async function loadCs() { const r = await fetch("/api/advisor"); if (r.ok) cs = await r.json(); }
+function renderCs(first) {
+  if (!cs) return;
+  $("#cs-k").textContent = `${cs.agency} · conseiller ${cs.advisor} · ${cs.n} clients`;
+  $("#cs-kpis").innerHTML = [["Encours financier", keur(cs.aum).replace(" k€", " k€"), `${cs.n} clients`], ["Impact marché du jour", `<span class="${cls(cs.impact)}">${sign(cs.impact, 0)} €</span>`, "agence, cours en direct"],
+    ["À contacter", cs.to_contact, "score ≥ 40"], ["Objectif retraite à risque", cs.at_risk, "probabilité < 50 %"]]
+    .map(([l, v, s]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  $("#cs-n").textContent = `${cs.clients.length} premiers · tri par score`;
+  const col = (s) => (s >= 60 ? COL.down : s >= 40 ? "#d4a24c" : COL.acc);
+  $("#cs-table").innerHTML = `<thead><tr><th style="text-align:left">Score</th><th style="text-align:left">Client</th><th>Encours</th><th>Jour</th><th>P(obj.)</th></tr></thead><tbody>` +
+    cs.clients.map((c) => `<tr data-c="${c.id}" class="${c.id === (pf && pf.client.id) ? "me" : ""} ${c.id === csSel ? "sel" : ""}"><td><div class="sc">${c.score}<i><b style="width:${c.score}%;background:${col(c.score)}"></b></i></div></td><td class="txt">${esc(c.name)} <small>${c.age} ans · ${esc(c.profile)} · ${esc(c.commune)}</small><div class="why">${c.kinds.map((k, i) => `<span class="${k}" title="${esc(c.reasons[i])}">${esc(c.reasons[i])}</span>`).join("")}</div></td><td>${keur(c.fin)}</td><td class="${cls(c.impact)}">${sign(c.impact, 0)} €</td><td>${fmt(c.prob * 100, 0)} %</td></tr>`).join("") + "</tbody>";
+  if (first) gsap.from("#cs-table tbody tr", { opacity: 0, y: 6, duration: 0.3, stagger: 0.012 });
+  $("#cs-ev").innerHTML = cs.events.map((e) => `<div class="evr" data-inv="${esc(e.event_id)}"><div>${esc(e.label)}<small>${e.clients} clients · encours exposé ${keur(e.exposed)}</small></div><div class="m ${cls(e.impact)}">${sign(e.impact, 0)} €</div><div class="m" style="color:var(--acc)">→</div></div>`).join("");
+  const mx = Math.max(...Object.values(cs.kinds));
+  $("#cs-kinds").innerHTML = Object.entries(cs.kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="rbar"><div>${KIND[k]}</div><div class="t"><i style="width:${(n / mx) * 100}%"></i></div><span>${n}</span></div>`).join("");
+  if (csSel) showMsg(csSel);
+}
+function showMsg(id) {
+  const c = cs.clients.find((x) => x.id === id); if (!c) return;
+  csSel = id; $$("#cs-table tr").forEach((r) => r.classList.toggle("sel", r.dataset.c === id));
+  $("#cs-who").textContent = `${c.name} · ${c.id}`;
+  $("#cs-msg").innerHTML = c.message ? `<div class="msg"><div class="q">${esc(c.message)}</div><div class="acts"><button class="btn ok" id="cs-send">Envoyer via messagerie sécurisée</button><button class="btn ghost" id="cs-rdv">Proposer un rendez-vous</button></div></div>` : `<div class="empty">Aucun motif de contact.</div>`;
+  gsap.from("#cs-msg .q", { opacity: 0, x: 8, duration: 0.25 });
+}
+$("#cs-table").addEventListener("click", (e) => { const r = e.target.closest("[data-c]"); if (r) showMsg(r.dataset.c); });
+$("#cs-msg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  b.textContent = b.id === "cs-send" ? `Envoyé · ${hhmm(Date.now())} (simulation)` : `Créneau proposé · ${hhmm(Date.now())} (simulation)`; b.disabled = true;
+});
+
+/* ---------- enquête ---------- */
+const inv = { tabs: [], on: null, cache: {} };
+async function openInv(id) {
+  if (!inv.tabs.includes(id)) inv.tabs.push(id);
+  inv.on = id;
+  if (!inv.cache[id]) { const r = await fetch("/api/investigate?id=" + encodeURIComponent(id)); inv.cache[id] = await r.json(); }
+  renderInv();
+  gsap.to("#inv", { x: 0, xPercent: 0, duration: 0.4, ease: "power3.out", onStart() { $("#inv").style.transform = ""; } });
+}
+function closeInv(id) {
+  inv.tabs = id ? inv.tabs.filter((t) => t !== id) : [];
+  if (!inv.tabs.length) { gsap.to("#inv", { xPercent: 102, duration: 0.3, ease: "power2.in" }); inv.on = null; return; }
+  if (inv.on === id) inv.on = inv.tabs[inv.tabs.length - 1];
+  renderInv();
+}
+function renderInv() {
+  $("#inv-tabs").innerHTML = inv.tabs.map((t) => `<div class="inv-tab ${t === inv.on ? "on" : ""}" data-t="${esc(t)}"><span>${esc(inv.cache[t]?.exposure?.label || t)}</span><b data-x="${esc(t)}">×</b></div>`).join("") + `<button class="x" data-x="">Fermer tout</button>`;
+  const d = inv.cache[inv.on], body = $("#inv-body");
+  if (!d || d.error) { body.innerHTML = `<p>${esc(d?.error || "Chargement…")}</p>`; return; }
+  const x = d.exposure, ev = events().find((e) => e.id === inv.on) || {}, envs = [...new Set(d.positions.map((p) => p.env))];
+  const val = d.positions.reduce((a, p) => a + p.value, 0);
+  body.innerHTML = `<div class="meta">${esc(ev.src || x.kind)} · ${ev.time ? new Date(ev.time).toLocaleString("fr-FR", { timeZone: "Europe/Paris" }) : "séance en cours"}</div><h3>${esc(x.label)}</h3>${ev.url ? `<a class="meta" style="color:var(--acc)" href="${esc(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}
+  <div class="chain"><div>Événement<b>${esc(x.label.split(" ").slice(-2).join(" "))}</b></div><div>Positions<b>${d.positions.length}</b></div><div>Encours concerné<b>${keur(val)}</b></div><div>Impact du jour<b class="${x.impact == null ? "" : cls(x.impact)}">${x.impact == null ? "non chiffrable" : sign(x.impact, 2) + " €"}</b></div><div>Effet à 60 ans<b>${d.horizon_effect == null ? "—" : sign(d.horizon_effect, 0) + " €"}</b></div></div>
+  <div class="inv-sec">Transmission au portefeuille</div>
+  <table class="tbl"><thead><tr><th style="text-align:left">Position</th><th style="text-align:left">Enveloppe</th><th>Valorisation</th><th>Poids du facteur</th><th>Contribution</th></tr></thead><tbody>${d.positions.map((p) => `<tr><td class="txt">${esc(p.name)}</td><td class="txt">${esc(p.env)}</td><td>${eur(p.value, 2)}</td><td>${p.w == null ? "—" : fmt(p.w * 100, 1) + " %"}</td><td class="${p.contrib == null ? "" : cls(p.contrib)}">${p.contrib == null ? "—" : sign(p.contrib, 2) + " €"}</td></tr>`).join("")}</tbody></table>
+  <div class="inv-sec">Méthode</div><p>${esc(x.rationale)}. ${x.impact != null ? `Contribution = valorisation × poids du facteur dans la réplication × variation de séance. L'effet à 60 ans capitalise l'impact du jour à 2,5 % réel par an sur ${d.years} ans : c'est un ordre de grandeur, pas une prévision.` : "L'événement ne se transmet pas mécaniquement à un prix de marché. Orbit signale l'encours concerné sans inventer de perte."}</p>
+  ${d.agency ? `<div class="inv-sec">Exposition de l'agence</div><p>${d.agency.clients} clients exposés, pour un encours de ${keur(d.agency.exposed)} et un impact estimé de ${sign(d.agency.impact, 0)} € sur la séance.</p>` : ""}
+  <div class="inv-sec">Limites</div><p>Les poids de réplication sont des approximations publiques des indices de référence. Les variations sont celles de la séance en cours (Yahoo Finance, Kraken) et peuvent différer de la valeur liquidative de fin de journée.</p>`;
+  gsap.from(body.children, { opacity: 0, y: 6, duration: 0.3, stagger: 0.03 });
+}
+$("#inv-tabs").addEventListener("click", (e) => { const xb = e.target.closest("[data-x]"); if (xb) return closeInv(xb.dataset.x || null); const t = e.target.closest("[data-t]"); if (t) { inv.on = t.dataset.t; renderInv(); } });
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-inv]"); if (b) { e.stopPropagation(); openInv(b.dataset.inv); } }, true);
+
 /* ---------- navigation ---------- */
 const currentView = () => $(".rail-btn.active")?.dataset.view || "monde";
 function go(view) {
@@ -542,6 +608,7 @@ function go(view) {
   const from = $(".view.active"), to = $("#view-" + view);
   $$(".rail-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "portefeuille") setTimeout(() => renderPortfolio(true), 180);
+  if (view === "conseiller") setTimeout(async () => { if (!cs) await loadCs(); renderCs(true); }, 180);
   if (view === "agents") setTimeout(async () => { if (!ag) await loadAg(); if (!agRunning) renderAgents(); }, 180);
   if (view === "horizon") setTimeout(async () => { if (!hz) await loadHz(); renderHz(true); }, 180);
   gsap.to(from, { opacity: 0, y: 6, duration: 0.15, ease: "power1.in", onComplete: () => {
@@ -590,7 +657,7 @@ $("#markets").addEventListener("click", (e) => { const r = e.target.closest("[da
 
 setInterval(() => { $("#clock").textContent = new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" }) + " Paris"; }, 1000);
 setInterval(async () => { try { await load("crypto"); renderCommodities(); renderTicker(); } catch {} }, 10000);
-setInterval(async () => { try { await load(); await loadPf(); renderAll(); if (currentView() === "portefeuille") renderPortfolio(false); if (hz) { await loadHz(); if (currentView() === "horizon") renderHz(false); } } catch {} }, 60000);
+setInterval(async () => { try { await load(); await loadPf(); renderAll(); if (currentView() === "portefeuille") renderPortfolio(false); if (cs) { await loadCs(); if (currentView() === "conseiller") renderCs(false); } if (hz) { await loadHz(); if (currentView() === "horizon") renderHz(false); } } catch {} }, 60000);
 $("#pf-exp").addEventListener("click", (e) => { const r = e.target.closest("[data-ev]"); if (r) { go("monde"); setTimeout(() => selectEvent(r.dataset.ev, true), 550); } });
 boot();
 })();

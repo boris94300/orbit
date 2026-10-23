@@ -6,7 +6,7 @@ import json
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import agents, feeds, horizon, portfolio
+from . import advisor, agents, feeds, horizon, portfolio
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -60,6 +60,23 @@ async def agents_run():
 @app.post("/api/agents/decide/{aid}/{decision}")
 def agents_decide(aid: str, decision: str):
     return agents.decide(aid, decision)
+
+
+async def _pf_payload():
+    payload = await feeds.collect()
+    return payload, portfolio.build(payload, await portfolio.georisques())
+
+
+@app.get("/api/advisor")
+async def get_advisor():
+    payload, pf = await _pf_payload()
+    return advisor.build(payload, pf)
+
+
+@app.get("/api/investigate")
+async def get_investigate(id: str):
+    payload, pf = await _pf_payload()
+    return advisor.investigate(pf, advisor.build(payload, pf), id)
 
 
 app.mount("/static", StaticFiles(directory=FRONT), name="static")

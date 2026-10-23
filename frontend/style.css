@@ -250,3 +250,44 @@ main{position:fixed;top:var(--top);left:var(--rail);right:0;bottom:0}
 .log td.txt{font-size:12px}
 .log .hash{color:var(--tx3)}
 .log tr.new td{background:rgba(91,156,240,.06)}
+
+/* conseiller */
+.cs td{font-size:12px;padding:7px 12px;vertical-align:top}
+.cs tr[data-c]{cursor:pointer}
+.cs tr[data-c]:hover td{background:rgba(255,255,255,.02)}
+.cs tr.sel td{background:rgba(91,156,240,.07)}
+.cs .sc{display:flex;align-items:center;gap:8px;font:500 12px var(--mono)}
+.cs .sc i{display:block;width:44px;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.cs .sc i b{display:block;height:100%}
+.cs .why{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.cs .why span{font-size:10.5px;border:1px solid var(--line2);border-radius:3px;padding:0 5px;color:var(--tx2)}
+.cs .why span.crypto,.cs .why span.alloc{border-color:rgba(212,162,76,.45);color:var(--warn)}
+.cs .why span.retraite{border-color:rgba(229,83,75,.45);color:var(--down)}
+.cs tr.me td:first-child{box-shadow:inset 2px 0 var(--acc)}
+.msg{padding:2px 14px 14px;font-size:13px;line-height:1.6}
+.msg .q{border-left:2px solid var(--line2);padding:8px 12px;margin:6px 0 10px;color:var(--tx)}
+.msg .acts{display:flex;gap:8px}
+.evr{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:7px 14px;border-top:1px solid var(--line);font-size:12px;cursor:pointer;align-items:baseline}
+.evr:first-child{border-top:0}.evr:hover{background:rgba(255,255,255,.02)}
+.evr small{display:block;font:10.5px var(--mono);color:var(--tx3)}
+.evr .m{font:12px var(--mono);text-align:right}
+/* enquête */
+#inv{position:absolute;top:0;right:0;bottom:0;width:min(760px,62vw);z-index:6;background:var(--bg2);border-left:1px solid var(--line2);display:flex;flex-direction:column;transform:translateX(102%);box-shadow:-24px 0 48px rgba(0,0,0,.35)}
+.inv-tabs{flex:none;display:flex;align-items:stretch;border-bottom:1px solid var(--line);min-height:36px;overflow-x:auto}
+.inv-tab{display:flex;align-items:center;gap:8px;padding:0 12px;font-size:11.5px;color:var(--tx2);border-right:1px solid var(--line);white-space:nowrap;max-width:230px;cursor:pointer}
+.inv-tab span{overflow:hidden;text-overflow:ellipsis}
+.inv-tab.on{color:var(--tx);background:var(--bg);box-shadow:inset 0 -2px var(--acc)}
+.inv-tab b{font-weight:400;color:var(--tx3);padding:2px 4px}.inv-tab b:hover{color:var(--tx)}
+.inv-tabs .x{margin-left:auto;padding:0 14px;color:var(--tx3);font-size:11.5px}
+.inv-body{flex:1;overflow:auto;padding:18px 20px 30px}
+.inv-body h3{font-size:18px;font-weight:500;letter-spacing:-.01em;margin:4px 0 4px}
+.inv-body .meta{font:11px var(--mono);color:var(--tx3)}
+.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:18px 0}
+.chain div{position:relative;border:1px solid var(--line);border-radius:5px;padding:8px 10px;font-size:11px;color:var(--tx3)}
+.chain div:not(:last-child)::after{content:"";position:absolute;right:-17px;top:50%;width:16px;height:1px;background:var(--acc)}
+.chain b{display:block;font:500 12.5px var(--mono);color:var(--tx);margin-top:2px}
+.inv-sec{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tx2);margin:18px 0 6px}
+.inv-body p{font-size:12.5px;color:var(--tx2);line-height:1.6}
+.inv-body .tbl td{font-size:12px}
+.ev .open{display:none;margin-top:6px;font:11px var(--mono);color:var(--acc)}
+.ev.sel .open{display:inline-block}
