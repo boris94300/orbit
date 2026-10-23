@@ -136,5 +136,18 @@
 <script type="module" src="/static/profile.js?v=5753347"></script>
 <script type="module" src="/static/choices.js?v=5753347"></script>
 <script type="module" src="/static/agents.js?v=5753347"></script>
+<script>
+if (sessionStorage.getItem("orbit-landing")) {
+  sessionStorage.removeItem("orbit-landing");
+  const ov = document.createElement("div"); ov.id = "landing"; ov.innerHTML = '<i></i>';
+  document.body.appendChild(ov);
+  const r = document.getElementById("avatar").getBoundingClientRect();
+  const dot = ov.firstChild;
+  dot.style.left = (r.left + r.width / 2) + "px"; dot.style.top = (r.top + r.height * 0.45) + "px";
+  gsap.fromTo(dot, { scale: 1.8, opacity: 1 }, { scale: 0.03, duration: 0.9, ease: "power3.out" });
+  gsap.to(dot, { scale: 0.45, opacity: 0, duration: 1.1, delay: 0.9, ease: "power2.out" });
+  gsap.to(ov, { backgroundColor: "rgba(0,0,0,0)", duration: 1.2, delay: 0.8, onComplete: () => ov.remove() });
+}
+</script>
 </body>
 </html>

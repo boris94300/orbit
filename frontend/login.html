@@ -40,6 +40,7 @@
     <div class="err" id="err"></div>
   </form>
 </main>
+<div id="land-cap"></div><div id="land-dot"></div>
 <footer class="auth-foot">Connexion chiffrée · mots de passe hachés (bcrypt) · double authentification TOTP · verrouillage après 5 essais</footer>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -59,7 +60,44 @@ async function post(url, body) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json().catch(() => ({ error: "Erreur serveur." }));
 }
-function enter() { setTimeout(() => (location.href = "/"), 1200); gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, y: -10, duration: 0.45 }); gsap.to("#globe", { opacity: 0, scale: 1.15, duration: 0.7, onComplete: () => (location.href = "/") }); }
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const fly = (pov, ms) => { globe.pointOfView(pov, ms); return wait(ms); };
+const caption = (t) => { const c = $("#land-cap"); gsap.to(c, { opacity: 0, y: -6, duration: 0.25, onComplete: () => { c.textContent = t; gsap.fromTo(c, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.45 }); } }); };
+async function locate() {
+  let city = { name: "Paris", lat: 48.8566, lng: 2.3522 };
+  try {
+    const p = await fetch("/api/profile").then((r) => r.json());
+    const name = p.city || (p.profile && p.profile.city);
+    if (name) {
+      const c = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(name)}&fields=centre&boost=population&limit=1`, { signal: AbortSignal.timeout(2500) }).then((r) => r.json());
+      if (c[0] && c[0].centre) city = { name: c[0].nom, lat: c[0].centre.coordinates[1], lng: c[0].centre.coordinates[0] };
+    }
+  } catch (e) { /* Paris par défaut */ }
+  return city;
+}
+async function enter() {
+  const go = () => { sessionStorage.setItem("orbit-landing", "1"); location.href = "/"; };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return go();
+  setTimeout(go, 12000);
+  gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, y: -10, duration: 0.45, pointerEvents: "none" });
+  ctr.autoRotate = false;
+  const city = await locate();
+  const nearParis = Math.hypot(city.lat - 48.8566, city.lng - 2.3522) < 0.6;
+  gsap.to("#globe", { x: 0, opacity: 1, duration: 1.6, ease: "power2.inOut" });
+  globe.ringsData([]);
+  caption("France");
+  await fly({ lat: 46.6, lng: 2.4, altitude: 1.3 }, 2000);
+  globe.ringsData([{ lat: city.lat, lng: city.lng }]).ringMaxRadius(1.6).ringRepeatPeriod(900);
+  caption(nearParis ? "Paris" : city.name);
+  await fly({ lat: nearParis ? 48.8566 : city.lat, lng: nearParis ? 2.3522 : city.lng, altitude: 0.45 }, 1600);
+  caption(nearParis && city.name !== "Paris" ? `${city.name} · tu es ici` : "Tu es ici");
+  gsap.to("#land-dot", { opacity: 1, scale: 0.03, duration: 0.6, ease: "back.out(2)" });
+  await fly({ lat: city.lat, lng: city.lng, altitude: 0.08 }, 1500);
+  gsap.to("#land-cap", { opacity: 0, duration: 0.3 });
+  gsap.to("#land-dot", { scale: 1.8, duration: 0.9, ease: "power2.in" });
+  gsap.to("#globe", { opacity: 0, duration: 0.7, delay: 0.2 });
+  gsap.to("#land-dot", { opacity: 0, duration: 0.5, delay: 0.55, onComplete: go });
+}
 $("#f").onsubmit = async (e) => {
   e.preventDefault(); err();
   $("#go").disabled = true;
@@ -88,7 +126,7 @@ $("#back").onclick = (e) => { e.preventDefault(); err(); step("s-cred"); };
 const tex = (() => { const c = document.createElement("canvas"); c.width = c.height = 4; const g = c.getContext("2d"); g.fillStyle = "#07080b"; g.fillRect(0, 0, 4, 4); return c.toDataURL(); })();
 const globe = Globe()($("#globe")).backgroundColor("rgba(0,0,0,0)").globeImageUrl(tex)
   .showAtmosphere(true).atmosphereColor("#4a6fa5").atmosphereAltitude(0.12)
-  .hexPolygonResolution(3).hexPolygonMargin(0.45).hexPolygonUseDots(true).hexPolygonColor(() => "rgba(160,180,210,0.30)")
+  .hexPolygonResolution((f) => (f.properties.name === "France" ? 5 : 3)).hexPolygonMargin(0.45).hexPolygonUseDots(true).hexPolygonColor((f) => (f.properties.name === "France" ? "rgba(185,205,240,0.42)" : "rgba(160,180,210,0.30)"))
   .ringColor(() => (t) => `rgba(138,180,255,${1 - t})`).ringMaxRadius(3.5).ringPropagationSpeed(1.2).ringRepeatPeriod(2400);
 globe.pointOfView({ lat: 30, lng: 10, altitude: 2.1 }, 0);
 const ctr = globe.controls(); ctr.autoRotate = true; ctr.autoRotateSpeed = 0.25; ctr.enableZoom = false;
