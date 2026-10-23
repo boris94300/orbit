@@ -87,7 +87,44 @@
       </div>
     </div>
   </section>
-  <section class="view" id="view-horizon"><div class="placeholder"><div class="ph-k">Étape 3</div><h2>Horizon 60</h2><p>Projection Monte-Carlo du patrimoine à 60 ans, probabilité d'atteindre l'objectif, briefing.</p></div></section>
+  <section class="view" id="view-horizon">
+    <div class="pf scroll">
+      <div class="pf-head">
+        <div>
+          <div class="ph-k mono" id="hz-k">Horizon 60 · projection Monte-Carlo · euros constants</div>
+          <h2>Patrimoine financier à la retraite</h2>
+          <div class="pf-sub" id="hz-sub"></div>
+        </div>
+      </div>
+      <div class="hz-grid">
+        <div>
+          <div class="card ctl">
+            <div class="card-h">Paramètres</div>
+            <label>Épargne mensuelle <b id="v-savings"></b></label><input type="range" id="s-savings" min="0" max="2000" step="25" value="650">
+            <label>Âge de départ <b id="v-retire_age"></b></label><input type="range" id="s-retire_age" min="58" max="67" step="1" value="60">
+            <label>Part actions <b id="v-equity"></b></label><input type="range" id="s-equity" min="10" max="90" step="5" value="55">
+            <label>Objectif de capital <b id="v-target"></b></label><input type="range" id="s-target" min="200000" max="800000" step="10000" value="420000">
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="card-h">Hypothèses de marché</div>
+            <table class="tbl hyp" id="hz-hyp"></table>
+            <div class="hz-live mono" id="hz-live"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">Trajectoires simulées · capital financier <span class="src" id="hz-n"></span></div>
+          <div id="hz-chart"></div>
+          <div class="hz-leg"><span><i class="l95"></i>90 % des scénarios</span><span><i class="l50"></i>50 % des scénarios</span><span><i class="lmed"></i>Médiane</span><span><i class="ltg"></i>Objectif</span></div>
+        </div>
+        <div>
+          <div class="card hz-prob"><div class="card-h">Probabilité d'atteindre l'objectif</div><div class="big mono" id="hz-prob">—</div><div class="s mono" id="hz-prob-s"></div><div class="pbar"><i id="hz-pbar"></i></div></div>
+          <div class="card hz-k" id="hz-kpis" style="margin-top:14px"></div>
+          <div class="card" style="margin-top:14px"><div class="card-h">Leviers · effet sur la médiane</div><div id="hz-sens"></div></div>
+        </div>
+        <div class="card wide"><div class="card-h">Note de projection <span class="src" id="hz-note-src"></span></div><div class="brief" id="hz-brief"></div></div>
+      </div>
+    </div>
+  </section>
   <section class="view" id="view-agents"><div class="placeholder"><div class="ph-k">Étape 4</div><h2>Agents et journal d'audit</h2><p>Pipeline veille → exposition → projection → conformité → action, mandat et validations.</p></div></section>
   <section class="view" id="view-conseiller"><div class="placeholder"><div class="ph-k">Étape 5</div><h2>Vue conseiller</h2><p>Clients de l'agence exposés à un événement, priorisation et messages préparés.</p></div></section>
 </main>

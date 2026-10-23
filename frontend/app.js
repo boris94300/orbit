@@ -345,6 +345,103 @@ function renderGraph(animate) {
   });
 }
 
+/* ---------- horizon 60 ---------- */
+let hz = null, hzT = null;
+const hzp = { savings: 650, retire_age: 60, equity: 55, target: 420000 };
+const hzFmt = { savings: (v) => eur(v) + "/mois", retire_age: (v) => v + " ans", equity: (v) => v + " %", target: (v) => keur(v) };
+async function loadHz() { const r = await fetch("/api/horizon?" + new URLSearchParams(hzp)); if (r.ok) hz = await r.json(); }
+for (const k of Object.keys(hzp)) {
+  const el = $("#s-" + k);
+  $("#v-" + k).textContent = hzFmt[k](hzp[k]);
+  el.addEventListener("input", () => {
+    hzp[k] = +el.value; $("#v-" + k).textContent = hzFmt[k](hzp[k]);
+    clearTimeout(hzT); hzT = setTimeout(async () => { await loadHz(); renderHz(false); }, 200);
+  });
+}
+function renderHz(first) {
+  if (!hz) return;
+  const h = hz, I = h.inputs, c = pf ? pf.client : { name: "", age: I.age };
+  $("#hz-sub").textContent = `${c.name} · ${I.age} ans · départ à ${I.retire_age} ans (${new Date().getFullYear() + I.years}) · capital initial ${eur(I.start)} · hors immobilier`;
+  $("#hz-n").textContent = `${fmt(h.n, 0)} scénarios · pas annuel · rééquilibrage annuel`;
+  $("#hz-hyp").innerHTML = h.assumptions.map(([k, v, s]) => `<tr><td class="txt">${esc(k)}<small>${esc(v)}</small><small>${esc(s)}</small></td></tr>`).join("");
+  $("#hz-live").textContent = `€STR ${fmt(I.estr, 3)} % · IPCH zone euro ${fmt(I.inflation, 1)} % · BCE, Eurostat`;
+  // chart
+  const box = $("#hz-chart"), W = box.clientWidth || 700, H = 430, m = { l: 58, r: 18, t: 16, b: 28 };
+  const x = d3.scaleLinear().domain([I.age, I.age + I.years]).range([m.l, W - m.r]);
+  const ymax = Math.max(d3.max(h.bands, (b) => b.p95), I.target) * 1.08;
+  const y = d3.scaleLinear().domain([0, ymax]).range([H - m.b, m.t]).nice();
+  const area = (lo, hi) => d3.area().x((d) => x(d.age)).y0((d) => y(d[lo])).y1((d) => y(d[hi])).curve(d3.curveMonotoneX);
+  const med = d3.line().x((d) => x(d.age)).y((d) => y(d.p50)).curve(d3.curveMonotoneX);
+  const pl = d3.line().x((d, i) => x(I.age + i)).y((d) => y(Math.min(d, y.domain()[1]))).curve(d3.curveMonotoneX);
+  let svg = d3.select(box).select("svg");
+  if (first || svg.empty()) {
+    box.innerHTML = '<div class="hz-tip"></div>';
+    svg = d3.select(box).append("svg").attr("width", W).attr("height", H);
+    ["grid", "ax x", "ax y", "paths", "b95", "b50", "tg", "med", "hover"].forEach((g) => svg.append("g").attr("class", g));
+  }
+  const T = svg.transition().duration(first ? 0 : 420).ease(d3.easeCubicOut);
+  svg.select(".ax.x").attr("transform", `translate(0,${H - m.b})`).transition(T).call(d3.axisBottom(x).ticks(Math.min(I.years, 10)).tickFormat((v) => v + " ans").tickSizeOuter(0));
+  svg.select(".ax.y").attr("transform", `translate(${m.l},0)`).transition(T).call(d3.axisLeft(y).ticks(6).tickFormat((v) => (v ? fmt(v / 1000, 0) + " k€" : "0")).tickSizeOuter(0));
+  svg.select(".grid").transition(T).call((g) => g.attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(-(W - m.l - m.r)).tickFormat("")).call((g) => g.select(".domain").remove()));
+  const ps = svg.select(".paths").selectAll("path").data(h.paths).join("path").attr("fill", "none").attr("stroke", COL.acc).attr("stroke-width", 0.8).attr("d", pl);
+  const b95 = svg.select(".b95").selectAll("path").data([h.bands]).join("path").attr("fill", "rgba(91,156,240,.13)");
+  const b50 = svg.select(".b50").selectAll("path").data([h.bands]).join("path").attr("fill", "rgba(91,156,240,.26)");
+  const ml = svg.select(".med").selectAll("path").data([h.bands]).join("path").attr("fill", "none").attr("stroke", "#d5dbe1").attr("stroke-width", 1.8);
+  const tg = svg.select(".tg").selectAll("g").data([I.target]).join((e) => { const g = e.append("g"); g.append("line").attr("stroke", "#d4a24c").attr("stroke-dasharray", "4 4"); g.append("text").attr("fill", "#d4a24c").attr("text-anchor", "end").style("font", "10.5px JetBrains Mono"); return g; });
+  tg.select("line").transition(T).attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(I.target)).attr("y2", y(I.target));
+  tg.select("text").text(`objectif ${keur(I.target)}`).transition(T).attr("x", W - m.r - 4).attr("y", y(I.target) - 6);
+  if (first) {
+    b95.attr("d", area("p5", "p95")).attr("opacity", 0); b50.attr("d", area("p25", "p75")).attr("opacity", 0); ml.attr("d", med(h.bands));
+    ps.attr("opacity", 0.16).each(function () { const L = this.getTotalLength(); this.style.strokeDasharray = L; this.style.strokeDashoffset = L; });
+    const Lm = ml.node().getTotalLength(); ml.style("stroke-dasharray", Lm).style("stroke-dashoffset", Lm);
+    const tl = gsap.timeline();
+    tl.to(ps.nodes(), { strokeDashoffset: 0, duration: 1.1, stagger: 0.012, ease: "power1.inOut" })
+      .to(ps.nodes(), { opacity: 0.06, duration: 0.5 }, "-=0.2")
+      .to([b95.node(), b50.node()], { opacity: 1, duration: 0.5, stagger: 0.12 }, "<")
+      .to(ml.node(), { strokeDashoffset: 0, duration: 0.7, ease: "power2.out" }, "<0.1");
+  } else {
+    ps.attr("opacity", 0.06).style("stroke-dasharray", "none");
+    b95.transition(T).attr("d", area("p5", "p95")).attr("opacity", 1); b50.transition(T).attr("d", area("p25", "p75")).attr("opacity", 1);
+    ml.style("stroke-dasharray", "none").transition(T).attr("d", med(h.bands));
+  }
+  // hover
+  const hv = svg.select(".hover"), tip = $(".hz-tip", box);
+  hv.selectAll("*").remove();
+  const vl = hv.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", "#5b6672").attr("opacity", 0);
+  const dot = hv.append("circle").attr("r", 3).attr("fill", "#d5dbe1").attr("opacity", 0);
+  hv.append("rect").attr("x", m.l).attr("y", m.t).attr("width", W - m.l - m.r).attr("height", H - m.t - m.b).attr("fill", "transparent")
+    .on("mousemove", (e) => {
+      const [mx] = d3.pointer(e), i = Math.max(0, Math.min(I.years, Math.round(x.invert(mx) - I.age))), b = h.bands[i];
+      vl.attr("x1", x(b.age)).attr("x2", x(b.age)).attr("opacity", 1); dot.attr("cx", x(b.age)).attr("cy", y(b.p50)).attr("opacity", 1);
+      tip.innerHTML = `<b>${b.age} ans · ${new Date().getFullYear() + i}</b><br>favorable (95e) ${keur(b.p95)}<br>médiane <b>${keur(b.p50)}</b><br>défavorable (5e) ${keur(b.p5)}`;
+      tip.style.left = Math.min(x(b.age) + 12, W - 190) + "px"; tip.style.top = y(b.p50) - 40 + "px"; tip.style.opacity = 1;
+    })
+    .on("mouseleave", () => { vl.attr("opacity", 0); dot.attr("opacity", 0); tip.style.opacity = 0; });
+  // kpis
+  const p = h.prob * 100, pc = p >= 70 ? COL.up : p >= 45 ? "#d4a24c" : COL.down;
+  const pe = $("#hz-prob"), from = +(pe.dataset.v || 0);
+  gsap.to({ v: from }, { v: p, duration: first ? 1.4 : 0.4, ease: "power2.out", onUpdate() { pe.textContent = fmt(this.targets()[0].v, 0) + " %"; } });
+  pe.dataset.v = p; pe.style.color = pc;
+  gsap.to("#hz-pbar", { width: p + "%", backgroundColor: pc, duration: first ? 1.4 : 0.4 });
+  $("#hz-prob-s").textContent = `${fmt(Math.round(h.prob * h.n), 0)} scénarios sur ${fmt(h.n, 0)} au-dessus de ${keur(I.target)}`;
+  const S = h.sensitivity, pnl = pf ? pf.totals.pnl : 0;
+  $("#hz-kpis").innerHTML = [
+    ["Capital médian à " + I.retire_age + " ans", keur(h.final.p50), `1 chance sur 2 entre ${keur(h.final.p25)} et ${keur(h.final.p75)}`],
+    ["Complément de revenu", eur(h.income.p50) + "/mois", "rente sur 25 ans, taux réel 1 %"],
+    ["Marchés du jour", `<span class="${cls(S.today)}">${sign(S.today, 0)} €</span>`, `${sign(pnl, 2)} € aujourd'hui → effet à ${I.retire_age} ans`],
+  ].map(([l, v, s]) => `<div class="row"><div>${l}<small>${s}</small></div><b>${v}</b></div>`).join("");
+  const lev = [["Épargner 100 €/mois de plus", S.plus100], [`Partir à ${I.retire_age + 2} ans`, S.plus2y], ["Part actions +10 pts", S.equity_plus10]];
+  $("#hz-sens").innerHTML = lev.map(([l, v]) => `<div class="row"><div>${l}</div><b class="${cls(v)}">${sign(v / 1000, 1)} k€</b></div>`).join("");
+  // note
+  const best = lev.slice().sort((a, b) => b[1] - a[1])[0];
+  const gap = I.target - h.final.p50;
+  $("#hz-brief").innerHTML = `<p>À ${I.age} ans, ${esc(c.name)} détient ${keur(I.start)} d'actifs financiers et épargne ${eur(I.savings)} par mois. Avec une allocation à ${I.equity_pct} % en actions, le capital projeté à ${I.retire_age} ans atteint ${keur(h.final.p50)} en médiane, exprimé en euros d'aujourd'hui. Dans un scénario sur deux, il se situe entre ${keur(h.final.p25)} et ${keur(h.final.p75)}. Dans les 5 % de scénarios les plus défavorables, il reste inférieur à ${keur(h.final.p5)}.</p>
+  <p>L'objectif de ${keur(I.target)} est atteint dans ${fmt(p, 0)} % des scénarios. ${gap > 0 ? `La médiane reste ${keur(gap)} en dessous de l'objectif. Le levier le plus efficace est : ${best[0].toLowerCase()} (${sign(best[1] / 1000, 1)} k€ sur la médiane).` : `La médiane dépasse l'objectif de ${keur(-gap)}. La priorité est donc de sécuriser progressivement le capital à l'approche de l'échéance, plutôt que d'augmenter le risque.`}</p>
+  <p>Les mouvements de marché du jour (${sign(pnl, 2)} € sur le portefeuille) représentent ${sign(S.today, 0)} € sur le capital médian à ${I.retire_age} ans. À cet horizon, l'effet est ${Math.abs(S.today) < h.final.p50 * 0.005 ? "négligeable et ne justifie aucun arbitrage" : "sensible et mérite un point avec le conseiller"}.</p>
+  <div class="foot">Projection indicative, hors immobilier, fiscalité et frais de gestion. Les performances passées ne préjugent pas des performances futures.</div>`;
+  $("#hz-note-src").textContent = `calcul ${hhmm(Date.now())} · ${fmt(h.n, 0)} scénarios`;
+}
+
 /* ---------- navigation ---------- */
 const currentView = () => $(".rail-btn.active")?.dataset.view || "monde";
 function go(view) {
@@ -352,6 +449,7 @@ function go(view) {
   const from = $(".view.active"), to = $("#view-" + view);
   $$(".rail-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "portefeuille") setTimeout(() => renderPortfolio(true), 180);
+  if (view === "horizon") setTimeout(async () => { if (!hz) await loadHz(); renderHz(true); }, 180);
   gsap.to(from, { opacity: 0, y: 6, duration: 0.15, ease: "power1.in", onComplete: () => {
     from.classList.remove("active"); gsap.set(from, { clearProps: "all" });
     to.classList.add("active");
@@ -398,7 +496,7 @@ $("#markets").addEventListener("click", (e) => { const r = e.target.closest("[da
 
 setInterval(() => { $("#clock").textContent = new Date().toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" }) + " Paris"; }, 1000);
 setInterval(async () => { try { await load("crypto"); renderCommodities(); renderTicker(); } catch {} }, 10000);
-setInterval(async () => { try { await load(); await loadPf(); renderAll(); if (currentView() === "portefeuille") renderPortfolio(false); } catch {} }, 60000);
+setInterval(async () => { try { await load(); await loadPf(); renderAll(); if (currentView() === "portefeuille") renderPortfolio(false); if (hz) { await loadHz(); if (currentView() === "horizon") renderHz(false); } } catch {} }, 60000);
 $("#pf-exp").addEventListener("click", (e) => { const r = e.target.closest("[data-ev]"); if (r) { go("monde"); setTimeout(() => selectEvent(r.dataset.ev, true), 550); } });
 boot();
 })();
