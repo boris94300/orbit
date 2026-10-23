@@ -44,6 +44,14 @@ const DEFS = {
     init: () => ({}),
     variants: (p) => [...new Set([62, p.retire_age, 67])].sort((a, b) => a - b).map((a) => ({ label: `Partir à ${a} ans${a === p.retire_age ? ", prévu" : ""}`, set: { retire_age: a } })),
   },
+  composer: {
+    title: "Composer mon scénario",
+    q: () => "Combine plusieurs décisions et compare le résultat à ta situation actuelle.",
+    params: (p) => [["savings_month", "Épargne", 0, 3000, 50, "€ / mois"], ["equity_share", "Part actions", 0, 100, 10, "%"], ["retire_age", "Retraite", 60, 70, 1, "ans"]]
+      .concat(p.housing === "locataire" ? [["buy", "Acheter mon logement", 0, 1, 1, "oui"]] : []),
+    init: (p) => ({ savings_month: p.savings_month, equity_share: p.equity_share, retire_age: p.retire_age, buy: p.buy.enabled ? 1 : 0 }),
+    variants: (p) => [{ label: "Ma situation actuelle", set: {} }, { label: "Mon scénario", set: { savings_month: par.savings_month, equity_share: par.equity_share, retire_age: par.retire_age, ...(p.housing === "locataire" ? { buy: { enabled: !!par.buy } } : {}) } }],
+  },
 };
 
 $("#c-list").addEventListener("click", (e) => {
@@ -59,7 +67,7 @@ function setup() {
     `<label class="cp"><span>${l}</span><b data-o="${k}">${fmt(par[k], suf)}</b><input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" value="${par[k]}"></label>`).join("");
   gsap.fromTo(".c-main > *", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.04 });
 }
-const fmt = (v, suf) => (suf === "€" ? keur(v) : suf === "€ / mois" ? eur(v) + " / mois" : `${(+v).toLocaleString("fr-FR")} ${suf}`);
+const fmt = (v, suf) => (suf === "oui" ? (+v ? "Oui" : "Non") : suf === "€" ? keur(v) : suf === "€ / mois" ? eur(v) + " / mois" : `${(+v).toLocaleString("fr-FR")} ${suf}`);
 $("#c-params").addEventListener("input", (e) => {
   const k = e.target.dataset.k; if (!k) return;
   par[k] = +e.target.value;
@@ -129,7 +137,7 @@ function cards(first) {
   const d = DEFS[kind], vs = d.variants(P);
   $("#c-cards").innerHTML = C.variants.map((v, i) => {
     const diff = v.mid[H] - base.mid[H];
-    const current = !Object.keys(vs[i].set).length || (kind === "logement" && !vs[i].set.buy.enabled && !P.buy.enabled) ||
+    const s = vs[i].set, current = kind === "composer" ? i === 0 || (s.savings_month === P.savings_month && s.equity_share === P.equity_share && s.retire_age === P.retire_age && (!s.buy || s.buy.enabled === P.buy.enabled)) : !Object.keys(vs[i].set).length || (kind === "logement" && !vs[i].set.buy.enabled && !P.buy.enabled) ||
       (kind === "logement" && vs[i].set.buy.enabled && P.buy.enabled && P.buy.price === par.price && P.buy.down === par.down) ||
       (vs[i].set.savings_month === P.savings_month && vs[i].set.savings_month != null) || (vs[i].set.equity_share === P.equity_share && vs[i].set.equity_share != null) ||
       (vs[i].set.retire_age === P.retire_age && vs[i].set.retire_age != null);
@@ -142,7 +150,7 @@ function cards(first) {
       <dt>Si les marchés sont favorables</dt><dd>${keur(v.good[H])}</dd>
       <dt>Dont logement</dt><dd>${v.home[H] > 1 ? keur(v.home[H]) : "—"}</dd>
       <dt>Complément à la retraite</dt><dd>${v.income ? eur(v.income) + " / mois" : "—"}</dd></dl>
-      ${current ? `<div class="cc-cur">Ton choix actuel</div>` : `<button class="cc-apply" data-i="${i}">Adopter ce choix</button>`}
+      <div class="cc-act">${current ? `<span class="cc-cur">Ton choix actuel</span>` : `<button class="cc-apply" data-i="${i}">Adopter ce choix</button>`}<button class="cc-more" data-i="${i}">Voir le détail →</button></div>
     </div>`;
   }).join("");
   if (first) gsap.from(".cc", { opacity: 0, y: 12, duration: 0.5, stagger: 0.07 });
@@ -157,6 +165,7 @@ function cards(first) {
       ` Calcul rejoué sur ${30} séquences de marché réelles (1996-2025), en euros d'aujourd'hui.`;
 }
 $("#c-cards").addEventListener("click", async (e) => {
+  const m = e.target.closest(".cc-more"); if (m) return detail(+m.dataset.i);
   const b = e.target.closest(".cc-apply"); if (!b) return;
   const v = DEFS[kind].variants(P)[+b.dataset.i];
   b.disabled = true; b.textContent = "Enregistrement…";
@@ -174,3 +183,34 @@ let ready = false;
 addEventListener("orbit:view", (e) => { if (e.detail === "choix") { if (!ready) { ready = true; init(); } else if (C) paint(true); } });
 addEventListener("orbit:profile", async () => { if (!ready) return; P = await (await fetch("/api/profile")).json(); });
 addEventListener("resize", () => C && $("#v-choix").classList.contains("on") && paint(true));
+
+/* ---------- détail d'un scénario ---------- */
+function detail(i) {
+  const v = C.variants[i], p = v.profile, ret = Math.min(C.horizon, p.retire_age - C.age0), age = (y) => C.age0 + y;
+  const st = [...v.by_start].sort((a, b) => a[1] - b[1]), worst = st[0], best = st[st.length - 1], y2000 = v.by_start.find((x) => x[0] === 2000);
+  let credit = "";
+  if (p.buy?.enabled) {
+    const k = p.buy.price - p.buy.down, n = p.buy.years * 12, r = p.buy.rate / 1200, m = r ? (k * r) / (1 - (1 + r) ** -n) : k / n;
+    credit = `<h4>Crédit immobilier</h4><dl class="dr-dl"><dt>Montant emprunté</dt><dd>${eur(k)}</dd><dt>Mensualité</dt><dd>${eur(m)}</dd>
+      <dt>Intérêts payés sur ${p.buy.years} ans</dt><dd>${eur(m * n - k)}</dd><dt>Coût total du crédit</dt><dd>${eur(m * n)}</dd><dt>Remboursé à</dt><dd>${age(p.buy.in_years + p.buy.years)} ans</dd></dl>`;
+  }
+  const yrs = Math.max(0, ret), contrib = p.cash + p.invested + p.savings_month * 12 * yrs, gain = Math.max(0, v.fin[ret] - contrib) * p.equity_share / 100;
+  const rows = [...new Set([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, ret].filter((y) => y <= C.horizon))].sort((a, b) => a - b);
+  $("#c-drawer").style.setProperty("--c", col(i));
+  $("#c-drawer").innerHTML = `<button class="dr-x" id="dr-x">×</button>
+    <div class="cc-l"><i></i>${v.label}</div><h3>${keur(v.mid[ret])}</h3><p class="dr-s">patrimoine net médian à la retraite, à ${p.retire_age} ans</p>
+    <h4>Si tu avais commencé à une autre époque</h4>
+    <div class="dr-hist">${[["Pire départ", worst], ["Départ en 2000, bulle internet", y2000], ["Meilleur départ", best]].filter((x) => x[1]).map(([l, x]) => `<div><span>${l}</span><b>${keur(x[1])}</b><small>marchés de ${x[0]} à ${x[0] + 29}</small></div>`).join("")}</div>
+    ${credit}
+    <h4>Fiscalité, estimation</h4><p class="dr-p">Environ <b>${keur(gain)}</b> de plus-values sur la part actions à la retraite. Imposées à 30 % sur un compte-titres (<b>${keur(gain * 0.3)}</b>), à 17,2 % seulement dans un PEA de plus de 5 ans (<b>${keur(gain * 0.172)}</b>). Le Livret A reste exonéré.</p>
+    <h4>Année par année, en euros d'aujourd'hui</h4>
+    <table class="dr-t"><thead><tr><th>Âge</th><th>Défavorable</th><th>Médian</th><th>Favorable</th><th>Logement</th></tr></thead><tbody>
+    ${rows.map((y) => `<tr class="${y === ret ? "ret" : ""}"><td>${age(y)} ans<small>${C.start_year + y}</small></td><td>${keur(v.bad[y])}</td><td>${keur(v.mid[y])}</td><td>${keur(v.good[y])}</td><td>${v.home[y] > 1 ? keur(v.home[y]) : "—"}</td></tr>`).join("")}</tbody></table>
+    <p class="dr-n">${v.by_start.length} séquences de marché réelles (1996-2025) rejouées en boucle. Illustration, pas une promesse de rendement.</p>`;
+  $("#c-drawer").classList.add("on"); $("#dr-back").classList.add("on");
+  gsap.from("#c-drawer > *", { opacity: 0, x: 16, duration: 0.45, stagger: 0.03, delay: 0.1 });
+}
+const closeDr = () => { $("#c-drawer").classList.remove("on"); $("#dr-back").classList.remove("on"); };
+$("#dr-back").addEventListener("click", closeDr);
+$("#c-drawer").addEventListener("click", (e) => e.target.closest("#dr-x") && closeDr());
+addEventListener("keydown", (e) => e.key === "Escape" && closeDr());

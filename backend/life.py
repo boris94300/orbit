@@ -139,7 +139,7 @@ def compare(p, variants, start_year=2026):
                     "bad": [x["net"] for x in r["scenarios"]["bad"]["rows"]], "good": [x["net"] for x in r["scenarios"]["good"]["rows"]],
                     "home": [x["home"] - x["debt"] for x in mid], "fin": [x["fin"] for x in mid],
                     "income": mid[min(len(mid) - 1, ret + 1)]["withdraw"] if 0 <= ret < len(mid) - 1 else 0,
-                    "profile": r["profile"]})
+                    "by_start": r["by_start"], "ref": r["ref"], "profile": r["profile"]})
     return {"age0": 2026 - p["birth_year"], "start_year": start_year, "retire_age": p["retire_age"],
             "horizon": len(out[0]["mid"]) - 1 if out else 0, "variants": out}
 
@@ -169,6 +169,7 @@ def project(p, start_year=2026, horizon=None):
         band.append([v[int(0.1 * (len(v) - 1))], v[int(0.9 * (len(v) - 1))]])
     return {"start_year": start_year, "age0": age0, "horizon": horizon, "retire_age": p["retire_age"], "ref": ref,
             "scenarios": sc, "band": band, "n_paths": len(paths),
+            "by_start": [[y, r[ref]["net"]] for y, r in paths],
             "incomes": sorted(r[min(ref + 1, horizon)]["withdraw"] for _, r in paths), "history": {k: h[k] for k in ("method", "sources", "status", "fetched")},
             "profile": p}
 
