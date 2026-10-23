@@ -125,7 +125,27 @@
       </div>
     </div>
   </section>
-  <section class="view" id="view-agents"><div class="placeholder"><div class="ph-k">Étape 4</div><h2>Agents et journal d'audit</h2><p>Pipeline veille → exposition → projection → conformité → action, mandat et validations.</p></div></section>
+  <section class="view" id="view-agents">
+    <div class="pf scroll">
+      <div class="pf-head">
+        <div>
+          <div class="ph-k mono">Orchestration · 6 agents · supervision humaine</div>
+          <h2>Agents et journal d'audit</h2>
+          <div class="pf-sub" id="ag-sub">Les agents calculent et proposent. Aucune opération n'est exécutée sans contrôle de conformité et validation du client.</div>
+        </div>
+        <div class="ag-ctl"><span class="mono" id="ag-mode"></span><button class="btn" id="ag-run">Lancer un cycle d'analyse</button></div>
+      </div>
+      <div class="pipe" id="ag-pipe"></div>
+      <div class="ag-grid">
+        <div class="card"><div class="card-h">Opérations proposées <span class="src" id="ag-pn"></span></div><div id="ag-props"><div class="empty">Aucun cycle exécuté. Lancez une analyse pour générer des propositions.</div></div></div>
+        <div>
+          <div class="card"><div class="card-h">Mandat de gestion <span class="src" id="ag-mid"></span></div><div id="ag-mandate"></div></div>
+          <div class="card" style="margin-top:14px"><div class="card-h">Note client · moi à 60 ans <span class="src" id="ag-note-src"></span></div><div class="brief" id="ag-note"><span class="empty">—</span></div></div>
+        </div>
+        <div class="card wide"><div class="card-h">Journal d'audit <span class="src">entrées chaînées par empreinte SHA-256 · <span id="ag-ln"></span></span></div><table class="tbl log" id="ag-log"></table></div>
+      </div>
+    </div>
+  </section>
   <section class="view" id="view-conseiller"><div class="placeholder"><div class="ph-k">Étape 5</div><h2>Vue conseiller</h2><p>Clients de l'agence exposés à un événement, priorisation et messages préparés.</p></div></section>
 </main>
 

@@ -1,10 +1,12 @@
 import os
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+import json
+
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import feeds, horizon, portfolio
+from . import agents, feeds, horizon, portfolio
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -40,6 +42,24 @@ async def get_horizon(savings: float = 650, retire_age: int = 60, equity: int = 
     retire_age = min(max(retire_age, pf["client"]["age"] + 1), 70)
     equity = min(max(equity, 0), 100)
     return horizon.project(pf, (payload.get("rates") or {}).get("data") or [], savings, retire_age, equity, target)
+
+
+@app.get("/api/agents/state")
+def agents_state():
+    return agents.state()
+
+
+@app.get("/api/agents/run")
+async def agents_run():
+    async def sse():
+        async for ev in agents.run():
+            yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
+    return StreamingResponse(sse(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/agents/decide/{aid}/{decision}")
+def agents_decide(aid: str, decision: str):
+    return agents.decide(aid, decision)
 
 
 app.mount("/static", StaticFiles(directory=FRONT), name="static")

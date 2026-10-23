@@ -197,3 +197,56 @@ main{position:fixed;top:var(--top);left:var(--rail);right:0;bottom:0}
 .brief p+p{margin-top:8px}
 .brief .foot{font-size:11px;color:var(--tx3);margin-top:10px}
 .hz-k .row b{white-space:nowrap;margin-left:10px}
+
+/* agents */
+.ag-ctl{display:flex;align-items:center;gap:14px}
+.ag-ctl #ag-mode{font-size:11px;color:var(--tx3)}
+.btn{border:1px solid var(--acc);color:var(--acc);border-radius:4px;padding:7px 14px;font-size:12.5px;transition:background .15s}
+.btn:hover{background:rgba(91,156,240,.1)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ok{border-color:var(--up);color:var(--up)}.btn.ok:hover{background:rgba(63,178,127,.1)}
+.btn.ghost{border-color:var(--line2);color:var(--tx2)}
+.pipe{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:22px;margin-bottom:14px;position:relative}
+.ag{position:relative;border:1px solid var(--line);border-radius:6px;padding:10px 12px 11px;background:var(--bg);transition:border-color .25s}
+.ag:not(:last-child)::after{content:"";position:absolute;right:-23px;top:50%;width:22px;height:1px;background:var(--line2)}
+.ag .n{font-size:12.5px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.ag .n i{width:7px;height:7px;border-radius:50%;background:var(--line2)}
+.ag .r{font-size:11px;color:var(--tx3);margin-top:3px;min-height:30px}
+.ag .o{font:11px var(--mono);color:var(--tx2);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag.running{border-color:var(--acc)}.ag.running .n i{background:var(--acc);animation:pulse 1s infinite}
+.ag.done .n i{background:var(--up)}.ag.done{border-color:var(--line2)}
+@keyframes pulse{50%{opacity:.25}}
+.ag-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;align-items:start}
+.ag-grid .wide{grid-column:1/-1}
+.empty{display:block;color:var(--tx3);font-size:12px;padding:6px 14px 16px}
+.prop{position:relative;border-top:1px solid var(--line);padding:12px 14px 14px;overflow:hidden}
+.prop:first-child{border-top:0}
+.prop .h{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.prop .t{font-size:13.5px;font-weight:500}
+.prop .id{font:10.5px var(--mono);color:var(--tx3);margin-top:1px}
+.prop .why{font-size:12px;color:var(--tx2);margin:6px 0 8px;max-width:640px}
+.badge{font:10.5px var(--mono);border:1px solid var(--line2);border-radius:3px;padding:1px 7px;white-space:nowrap;color:var(--tx2)}
+.badge.pending{color:var(--acc);border-color:rgba(91,156,240,.5)}
+.badge.escalated{color:var(--warn);border-color:rgba(212,162,76,.5)}
+.badge.blocked,.badge.rejected{color:var(--down);border-color:rgba(229,83,75,.5)}
+.badge.executed{color:var(--up);border-color:rgba(63,178,127,.5)}
+.checks{display:grid;grid-template-columns:auto 1fr auto;gap:3px 10px;font-size:11.5px;margin-bottom:10px}
+.checks .k{width:8px;height:8px;border-radius:1px;margin-top:4px}
+.checks .k.y{background:var(--up)}.checks .k.n{background:var(--down)}
+.checks .d{font:11px var(--mono);color:var(--tx3);text-align:right}
+.prop .acts{display:flex;gap:8px}
+.stamp-wrap{padding:2px 0 2px 4px}
+.stamp{display:inline-block;border:2px solid var(--up);color:var(--up);border-radius:4px;padding:5px 10px;font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;transform:rotate(-4deg);background:var(--bg)}
+.stamp small{display:block;font-weight:400;letter-spacing:0;text-transform:none;font-size:10px}
+.md{padding:2px 14px 14px;font-size:12px}
+.md .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--tx2)}
+.md .row b{font:500 12px var(--mono);color:var(--tx)}
+.md .lst{margin-top:8px;font-size:11.5px;color:var(--tx2)}
+.md .lst div{padding:2px 0 2px 12px;position:relative}
+.md .lst div::before{content:"";position:absolute;left:0;top:9px;width:5px;height:1px;background:currentColor}
+.md .lst.no{color:var(--tx3)}
+.md .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);margin-top:10px}
+.log td{font-size:11.5px;padding:5px 14px;vertical-align:top}
+.log td.txt{font-size:12px}
+.log .hash{color:var(--tx3)}
+.log tr.new td{background:rgba(91,156,240,.06)}

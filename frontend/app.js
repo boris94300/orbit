@@ -6,7 +6,7 @@ const nf = (d) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, max
 const fmt = (v, d = 2) => (v == null || isNaN(v) ? "—" : nf(d).format(v));
 const sign = (v, d = 2) => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), d);
 const cls = (v) => (v > 0.005 ? "up" : v < -0.005 ? "down" : "flat");
-const hhmm = (ms) => new Date(ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const hhmm = (ms) => new Date(ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 const ago = (ms) => {
   const m = Math.round((Date.now() - ms) / 60000);
   if (m < 1) return "à l'instant";
@@ -442,6 +442,99 @@ function renderHz(first) {
   $("#hz-note-src").textContent = `calcul ${hhmm(Date.now())} · ${fmt(h.n, 0)} scénarios`;
 }
 
+/* ---------- agents ---------- */
+let ag = null, agRunning = false;
+const hms = (t) => new Date(t * 1000).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris" });
+const ST = { pending: "validation client requise", escalated: "transmis au conseiller", blocked: "bloqué par conformité", executed: "exécuté", rejected: "refusé" };
+async function loadAg() { const r = await fetch("/api/agents/state"); if (r.ok) ag = await r.json(); }
+function renderPipe(st = {}) {
+  $("#ag-pipe").innerHTML = ag.agents.map((a) => `<div class="ag ${st[a.id]?.status || ""}" data-a="${a.id}"><div class="n">${esc(a.name)}<i></i></div><div class="r">${esc(a.role)}</div><div class="o">${st[a.id]?.summary ? esc(st[a.id].summary) + ` · ${st[a.id].ms} ms` : "en attente"}</div></div>`).join("");
+}
+function setAgent(id, status, summary, ms) {
+  const el = $(`.ag[data-a="${id}"]`); if (!el) return;
+  el.className = "ag " + status;
+  $(".o", el).textContent = summary ? `${summary} · ${ms} ms` : "en cours…";
+}
+function logRow(e, fresh) {
+  return `<tr class="${fresh ? "new" : ""}"><td>${hms(e.ts)}</td><td class="txt">${esc(e.agent_name)}</td><td class="txt">${esc(e.op)}</td><td class="txt">${esc(e.detail)}${e.source ? `<small>${esc(e.source)}</small>` : ""}</td><td class="txt">${e.decision ? `<span class="badge ${{ "validation client requise": "pending", "hors mandat · transmis au conseiller": "escalated", "bloqué": "blocked", "rejeté": "blocked", "refusé": "blocked", "exécuté": "executed", "approuvé": "executed", "conforme": "executed" }[e.decision] || ""}">${esc(e.decision)}</span>` : ""}</td><td class="hash">${e.hash.slice(0, 10)}</td></tr>`;
+}
+function renderLog() {
+  $("#ag-log").innerHTML = `<thead><tr><th style="text-align:left">Heure</th><th style="text-align:left">Agent</th><th style="text-align:left">Opération</th><th style="text-align:left">Détail · source</th><th style="text-align:left">Décision</th><th style="text-align:left">Empreinte</th></tr></thead><tbody>${ag.log.slice().reverse().map((e) => logRow(e)).join("")}</tbody>`;
+  $("#ag-ln").textContent = `${ag.log.length} entrées`;
+}
+function addLog(e) {
+  ag.log.push(e);
+  const tb = $("#ag-log tbody"); tb.insertAdjacentHTML("afterbegin", logRow(e, true));
+  gsap.from(tb.firstElementChild, { opacity: 0, y: -6, duration: 0.3 });
+  $("#ag-ln").textContent = `${ag.log.length} entrées`;
+}
+function renderMandate() {
+  const M = ag.mandate, used = (M.used / M.monthly_cap) * 100;
+  $("#ag-mid").textContent = `${M.id} · signé le ${new Date(M.signed).toLocaleDateString("fr-FR")}`;
+  $("#ag-mandate").innerHTML = `<div class="md"><div class="row">Plafond mensuel<b>${eur(M.monthly_cap)}</b></div><div class="row">Engagé ce mois<b id="md-used">${eur(M.used)}</b></div><div class="pbar" style="margin:6px 0 4px"><i id="md-bar" style="width:${used}%"></i></div><div class="row">Échéance<b>${new Date(M.expires).toLocaleDateString("fr-FR")}</b></div>
+  <div class="lbl">Opérations autorisées</div><div class="lst">${M.allowed.map((x) => `<div>${esc(x)}</div>`).join("")}</div>
+  <div class="lbl">Exclusions</div><div class="lst no">${M.forbidden.map((x) => `<div>${esc(x)}</div>`).join("")}</div>
+  <div class="lbl">Règle</div><div class="lst"><div>${esc(M.validation)}</div></div></div>`;
+}
+function propHtml(p) {
+  return `<div class="prop" data-p="${p.id}"><div class="h"><div><div class="t">${esc(p.title)}</div><div class="id">${p.id} · ${esc(p.target)} · ${eur(p.amount, p.amount % 1 ? 2 : 0)}${p.unit === "€/mois" ? "/mois" : ""}${p.effect != null ? ` · effet médiane ${sign(p.effect / 1000, 1)} k€` : ""}</div></div><span class="badge ${p.status}">${ST[p.status]}</span></div>
+  <div class="why">${esc(p.rationale)}</div>
+  <div class="checks">${(p.checks || []).map(([l, ok, d]) => `<i class="k ${ok ? "y" : "n"}"></i><span>${esc(l)}</span><span class="d">${esc(d)}</span>`).join("")}</div>
+  ${p.status === "pending" ? `<div class="acts"><button class="btn ok" data-d="approve">Valider l'opération</button><button class="btn ghost" data-d="reject">Refuser</button></div>` : ""}
+  ${p.status === "executed" ? `<div class="stamp-wrap"><div class="stamp">Exécuté · ${hms(p.executed_at)}<small>réf. ${p.ref}</small></div></div>` : ""}</div>`;
+}
+function renderProps() {
+  const ps = ag.pending.slice().reverse();
+  if (!ps.length) return;
+  $("#ag-props").innerHTML = ps.map(propHtml).join("");
+  $("#ag-pn").textContent = `${ps.filter((p) => p.status === "pending").length} en attente de validation`;
+}
+function renderNote() {
+  if (!ag.note) return;
+  $("#ag-note").innerHTML = `<p>${esc(ag.note.text)}</p><div class="foot">Chiffres issus du moteur de projection. Toute reformulation par un modèle est vérifiée chiffre à chiffre avant publication.</div>`;
+  $("#ag-note-src").textContent = `${ag.note.source === "règles" ? "rédaction par règles" : "reformulé · " + ag.note.source} · ${hms(ag.note.ts)}`;
+}
+function renderAgents() {
+  if (!ag) return;
+  $("#ag-mode").textContent = `modèle de rédaction : ${ag.mode}`;
+  renderPipe(); renderMandate(); renderProps(); renderNote(); renderLog();
+}
+$("#ag-run").addEventListener("click", () => {
+  if (agRunning) return;
+  agRunning = true; $("#ag-run").disabled = true; $("#ag-run").textContent = "Cycle en cours…";
+  renderPipe();
+  const es = new EventSource("/api/agents/run");
+  es.onmessage = (m) => {
+    const d = JSON.parse(m.data);
+    if (d.type === "step") setAgent(d.agent, "running");
+    else if (d.type === "step_end") setAgent(d.agent, "done", d.summary, d.ms);
+    else if (d.type === "log") addLog(d.entry);
+    else if (d.type === "done") {
+      es.close(); Object.assign(ag, { pending: d.pending, mandate: d.mandate, note: d.note });
+      renderProps(); renderMandate(); renderNote();
+      gsap.from("#ag-props .prop", { opacity: 0, y: 8, duration: 0.35, stagger: 0.08 });
+      agRunning = false; $("#ag-run").disabled = false; $("#ag-run").textContent = "Relancer un cycle";
+    }
+  };
+  es.onerror = () => { es.close(); agRunning = false; $("#ag-run").disabled = false; $("#ag-run").textContent = "Relancer un cycle"; };
+});
+$("#ag-props").addEventListener("click", async (ev) => {
+  const btn = ev.target.closest("[data-d]"); if (!btn) return;
+  const card = btn.closest(".prop"), id = card.dataset.p;
+  $$(".acts .btn", card).forEach((b) => (b.disabled = true));
+  const r = await (await fetch(`/api/agents/decide/${id}/${btn.dataset.d}`, { method: "POST" })).json();
+  if (r.error) return;
+  for (const e of r.entries) { addLog(e); await new Promise((res) => setTimeout(res, 260)); }
+  const i = ag.pending.findIndex((p) => p.id === id); ag.pending[i] = r.proposal; ag.mandate = r.mandate;
+  card.outerHTML = propHtml(r.proposal);
+  renderMandate(); renderProps();
+  const st = $(`.prop[data-p="${id}"] .stamp`);
+  if (st) gsap.from(st, { scale: 1.6, opacity: 0, duration: 0.35, ease: "back.out(2)" });
+  if (r.proposal.status === "executed" && r.proposal.kind === "versement") {
+    hzp.savings += r.proposal.amount; $("#s-savings").value = hzp.savings; $("#v-savings").textContent = hzFmt.savings(hzp.savings); hz = null;
+  }
+});
+
 /* ---------- navigation ---------- */
 const currentView = () => $(".rail-btn.active")?.dataset.view || "monde";
 function go(view) {
@@ -449,6 +542,7 @@ function go(view) {
   const from = $(".view.active"), to = $("#view-" + view);
   $$(".rail-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "portefeuille") setTimeout(() => renderPortfolio(true), 180);
+  if (view === "agents") setTimeout(async () => { if (!ag) await loadAg(); if (!agRunning) renderAgents(); }, 180);
   if (view === "horizon") setTimeout(async () => { if (!hz) await loadHz(); renderHz(true); }, 180);
   gsap.to(from, { opacity: 0, y: 6, duration: 0.15, ease: "power1.in", onComplete: () => {
     from.classList.remove("active"); gsap.set(from, { clearProps: "all" });
