@@ -1,17 +1,114 @@
 import os
 
-from fastapi import FastAPI
 import json
 
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import advisor, agents, feeds, horizon, life, portfolio
+from . import advisor, agents, auth, feeds, horizon, life, live, portfolio
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
 
 app = FastAPI(title="Orbit")
+auth.init()
+
+
+def _ip(req: Request):
+    return req.headers.get("cf-connecting-ip") or (req.client.host if req.client else "?")
+
+
+def _me(req: Request):
+    u = auth.session_user(req.cookies.get(auth.COOKIE))
+    if not u:
+        raise HTTPException(401, "non connecté")
+    return u
+
+
+def _with_cookie(res: dict, req: Request):
+    if not res.get("ok"):
+        return JSONResponse({k: v for k, v in res.items() if k != "cookie"}, status_code=400 if "error" in res else 200)
+    r = JSONResponse({"ok": True, "user": res["user"]})
+    secure = req.url.scheme == "https" or req.headers.get("x-forwarded-proto") == "https"
+    r.set_cookie(auth.COOKIE, res["cookie"], max_age=auth.SESSION_AGE, httponly=True, samesite="lax", secure=secure)
+    return r
+
+
+@app.post("/api/auth/register")
+async def register(req: Request):
+    b = await req.json()
+    if not auth.ip_allowed(_ip(req)):
+        return JSONResponse({"error": "Trop de tentatives. Réessaie dans quelques minutes."}, status_code=429)
+    uid, err = auth.register(b.get("email"), b.get("password"))
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    return _with_cookie(auth.login(b.get("email"), b.get("password"), _ip(req)), req)
+
+
+@app.post("/api/auth/login")
+async def login(req: Request):
+    b = await req.json()
+    return _with_cookie(auth.login(b.get("email"), b.get("password"), _ip(req)), req)
+
+
+@app.post("/api/auth/2fa")
+async def login_2fa(req: Request):
+    b = await req.json()
+    return _with_cookie(auth.second_factor(b.get("ticket"), b.get("code"), _ip(req)), req)
+
+
+@app.post("/api/auth/logout")
+def logout(req: Request):
+    r = JSONResponse({"ok": True})
+    r.delete_cookie(auth.COOKIE)
+    return r
+
+
+@app.get("/api/me")
+def me(req: Request):
+    return auth.public(_me(req))
+
+
+@app.post("/api/security/totp/setup")
+def totp_setup(req: Request):
+    return auth.totp_setup(_me(req))
+
+
+@app.post("/api/security/totp/enable")
+async def totp_enable(req: Request):
+    return _with_cookie(auth.totp_enable(_me(req), (await req.json()).get("code")), req)
+
+
+@app.post("/api/security/totp/disable")
+async def totp_disable(req: Request):
+    res = auth.totp_disable(_me(req), (await req.json()).get("code"))
+    return JSONResponse(res, status_code=400 if "error" in res else 200)
+
+
+@app.post("/api/security/logout-all")
+def logout_all(req: Request):
+    auth.logout_all(_me(req))
+    return logout(req)
+
+
+@app.get("/api/profile")
+def get_profile(req: Request):
+    return auth.get_profile(_me(req))
+
+
+@app.put("/api/profile")
+async def put_profile(req: Request):
+    u = _me(req)
+    p = life.sanitize(await req.json(), auth.get_profile(u))
+    auth.save_profile(u, p)
+    return p
+
+
+@app.post("/api/compare")
+async def compare(req: Request):
+    u = _me(req)
+    return life.compare(auth.get_profile(u), (await req.json()).get("variants") or [])
 
 
 @app.get("/api/feeds")
@@ -67,9 +164,23 @@ async def _pf_payload():
     return payload, portfolio.build(payload, await portfolio.georisques())
 
 
+@app.post("/api/agents/live")
+async def live_start(req: Request):
+    u = _me(req)
+    return {"run": live.start(u["id"], life.sanitize(auth.get_profile(u), life.BLANK))}
+
+
+@app.get("/api/agents/live/{rid}")
+def live_poll(rid: str, req: Request, since: int = 0):
+    res = live.poll(_me(req)["id"], rid, max(0, since))
+    if res is None:
+        raise HTTPException(404, "analyse inconnue")
+    return res
+
+
 @app.get("/api/life")
-def get_life():
-    return life.project(life.DEMO)
+def get_life(req: Request):
+    return life.project(life.sanitize(auth.get_profile(_me(req)), life.BLANK))
 
 
 @app.get("/api/advisor")
@@ -88,8 +199,15 @@ app.mount("/static", StaticFiles(directory=FRONT), name="static")
 
 
 @app.get("/")
-def index():
-    return FileResponse(os.path.join(FRONT, "index.html"))
+def index(req: Request):
+    if not auth.session_user(req.cookies.get(auth.COOKIE)):
+        return RedirectResponse("/login")
+    return FileResponse(os.path.join(FRONT, "index.html"), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/login")
+def login_page():
+    return FileResponse(os.path.join(FRONT, "login.html"))
 
 
 @app.get("/pro")

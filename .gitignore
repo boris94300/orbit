@@ -3,3 +3,5 @@ __pycache__
 *.pyc
 .env
 data/audit.jsonl
+data/orbit.db
+data/secret.key

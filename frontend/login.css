@@ -1,0 +1,24 @@
+body.auth{background:radial-gradient(900px 600px at 70% 50%,rgba(90,120,180,.10),transparent 60%),var(--bg)}
+#globe{position:fixed;inset:0;transform:translateX(18%);opacity:.75}
+.auth-top{position:fixed;top:0;left:0;padding:22px 40px;z-index:2}
+.auth-main{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,520px) 380px;gap:80px;align-items:center;padding:0 8vw;pointer-events:none}
+.auth-main>*{pointer-events:auto}
+.pitch h1{font-size:54px;font-weight:600;letter-spacing:-.04em;line-height:1.05}
+.pitch p{margin-top:20px;font-size:17px;line-height:1.55;color:var(--tx2);max-width:440px}
+.card{background:rgba(18,19,23,.72);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--line);border-radius:20px;padding:30px 28px 24px}
+.card h2{font-size:21px;font-weight:600;letter-spacing:-.02em;margin-bottom:18px}
+.step{display:none}.step.on{display:block}
+.card label{display:block;font-size:12px;color:var(--tx2);margin-bottom:12px}
+.card input{display:block;width:100%;margin-top:6px;font:inherit;font-size:15px;color:var(--tx);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 12px;outline:none;transition:border-color .2s,background .2s}
+.card input:focus{border-color:rgba(138,180,255,.6);background:rgba(255,255,255,.07)}
+.hint{font-size:11.5px;color:var(--tx3);margin:-4px 0 10px}
+.primary{width:100%;margin-top:8px;background:#f5f5f7;color:#000;font-weight:500;font-size:15px;padding:12px;border-radius:10px;transition:opacity .2s,transform .1s}
+.primary:active{transform:scale(.99)}.primary:disabled{opacity:.5}
+.swap{margin-top:16px;font-size:13px;color:var(--tx3);text-align:center}
+.swap a,.back{color:var(--acc);text-decoration:none}
+.muted{font-size:13.5px;line-height:1.5;color:var(--tx2);margin-bottom:18px}
+.otp{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.otp input{text-align:center;font-size:22px;padding:12px 0;font-variant-numeric:tabular-nums}
+.back{font-size:13px}
+.err{min-height:18px;margin-top:12px;font-size:13px;color:#ff9f6b}
+.auth-foot{position:fixed;left:0;right:0;bottom:16px;text-align:center;font-size:11.5px;color:var(--tx3);z-index:2}

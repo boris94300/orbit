@@ -12,9 +12,29 @@ $("#tabs").addEventListener("click", (e) => {
   $$("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   const v = $("#v-" + b.dataset.v);
   $$(".view").forEach((x) => x.classList.toggle("on", x === v));
-  gsap.fromTo(v, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
+  gsap.fromTo(v, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out", clearProps: "transform" });
   if (b.dataset.v === "vie") resize();
+  dispatchEvent(new CustomEvent("orbit:view", { detail: b.dataset.v }));
 });
+export function show(v) { $(`#tabs button[data-v="${v}"]`).click(); }
+window.orbitShow = show;
+async function me() {
+  const r = await fetch("/api/me");
+  if (r.status === 401) return (location.href = "/login");
+  const u = await r.json();
+  const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email;
+  $("#me-name").textContent = name;
+  $("#me-ini").textContent = ((u.first_name || u.email)[0] + (u.last_name || "")[0 || 0] || "").toUpperCase().slice(0, 2);
+  $("#me-mail").textContent = u.email;
+}
+$("#me").addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "logout") return fetch("/api/auth/logout", { method: "POST" }).then(() => (location.href = "/login"));
+  if (act === "security") { show("profil"); setTimeout(() => $("#security").scrollIntoView({ behavior: "smooth" }), 300); }
+  $("#menu").classList.toggle("open", !act && !$("#menu").classList.contains("open"));
+});
+addEventListener("click", (e) => { if (!e.target.closest("#me")) $("#menu").classList.remove("open"); });
+addEventListener("orbit:profile", () => { me(); load(); });
 
 /* ---------- données ---------- */
 const at = (key, t) => {
@@ -23,7 +43,10 @@ const at = (key, t) => {
   return a + (b - a) * f;
 };
 async function load() {
-  L = await (await fetch("/api/life")).json();
+  const r = await fetch("/api/life");
+  if (r.status === 401) return (location.href = "/login");
+  L = await r.json();
+  target = Math.min(target, L.horizon); cur = Math.min(cur, L.horizon);
   const p = L.profile;
   $("#t").max = L.horizon;
   const ret = p.retire_age - L.age0;
@@ -211,4 +234,4 @@ function frame() {
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-resize(); load(); frame();
+resize(); me(); load(); frame();

@@ -20,7 +20,9 @@
     <button data-v="agents">Agents</button>
     <button data-v="profil">Profil</button>
   </nav>
-  <div class="me"><span id="me-name">Camille Moreau</span><span class="ini" id="me-ini">CM</span></div>
+  <div class="me" id="me"><span id="me-name"></span><span class="ini" id="me-ini"></span>
+    <div class="menu" id="menu"><div class="m-mail" id="me-mail"></div><button data-act="security">Sécurité du compte</button><button data-act="logout">Se déconnecter</button></div>
+  </div>
 </header>
 
 <main>
@@ -48,11 +50,52 @@
       <div class="ticks" id="ticks"></div>
     </div>
   </section>
-  <section class="view" id="v-choix"><div class="soon">Mes choix · en construction</div></section>
-  <section class="view" id="v-agents"><div class="soon">Agents en direct · en construction</div></section>
-  <section class="view" id="v-profil"><div class="soon">Profil · en construction</div></section>
+  <section class="view" id="v-choix">
+    <aside class="c-list" id="c-list">
+      <div class="c-head">Comparer</div>
+      <button data-c="logement" class="on"><b>Louer ou acheter</b><span>Rester locataire ou devenir propriétaire</span></button>
+      <button data-c="epargne"><b>Épargner pour plus tard</b><span>Combien mettre de côté chaque mois</span></button>
+      <button data-c="placement"><b>Où placer mon épargne</b><span>Livret A, équilibré ou dynamique</span></button>
+      <button data-c="retraite"><b>Quand partir à la retraite</b><span>62, 64 ou 67 ans</span></button>
+    </aside>
+    <div class="c-main">
+      <div class="c-top">
+        <div><h2 id="c-title"></h2><p id="c-q"></p></div>
+        <div class="pills" id="c-h"></div>
+      </div>
+      <div class="c-params" id="c-params"></div>
+      <svg id="c-chart"></svg>
+      <div class="c-cards" id="c-cards"></div>
+      <p class="c-verdict" id="c-verdict"></p>
+    </div>
+  </section>
+  <section class="view" id="v-agents">
+    <div class="a-top">
+      <div><h2>Agents en direct</h2><p>Cinq agents interrogent les sources publiques, recalculent ta projection et cherchent des ajustements. Rien n'est appliqué sans ton accord.</p></div>
+      <button class="primary-sm" id="a-run">Lancer l'analyse</button>
+    </div>
+    <div class="a-grid">
+      <ol class="a-pipe" id="a-pipe"></ol>
+      <div class="a-log" id="a-log"><div class="a-empty">Lance l'analyse pour voir chaque appel, chaque donnée reçue et chaque calcul, en direct.</div></div>
+      <aside class="a-out" id="a-out"></aside>
+    </div>
+  </section>
+  <section class="view" id="v-profil">
+    <div class="p-wrap">
+      <div class="p-head"><h2>Mon profil</h2><p>Ces informations restent sur ton compte. Elles servent uniquement à calculer tes projections.</p></div>
+      <form id="p-form" autocomplete="off"></form>
+      <div class="p-group" id="security">
+        <div class="p-gt">Sécurité</div>
+        <div class="p-card" id="sec-body"></div>
+      </div>
+    </div>
+    <div class="p-save" id="p-save"><span id="p-status">Modifications non enregistrées</span><button class="primary-sm" id="p-btn">Enregistrer</button></div>
+  </section>
 </main>
 <footer class="foot" id="foot"></footer>
 <script type="module" src="/static/life.js"></script>
+<script type="module" src="/static/profile.js"></script>
+<script type="module" src="/static/choices.js"></script>
+<script type="module" src="/static/agents.js"></script>
 </body>
 </html>

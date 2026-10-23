@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit · Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/life.css">
+<link rel="stylesheet" href="/static/login.css">
+<script src="/static/vendor/globe.gl.min.js"></script>
+<script src="/static/vendor/topojson-client.min.js"></script>
+<script src="/static/vendor/gsap.min.js"></script>
+</head>
+<body class="auth">
+<div id="globe"></div>
+<header class="auth-top"><div class="logo"><span class="dot"></span>Orbit</div></header>
+<main class="auth-main">
+  <div class="pitch">
+    <h1>Ta vie,<br>dans 10, 30 ou 60 ans.</h1>
+    <p>Orbit rejoue tes choix d'épargne, de logement et de placement sur trente ans de marchés réels, pour voir où ils te mènent.</p>
+  </div>
+  <form class="card" id="f" autocomplete="on" novalidate>
+    <div class="step on" id="s-cred">
+      <h2 id="title">Connexion</h2>
+      <label>Adresse email<input type="email" name="email" id="email" autocomplete="username" required></label>
+      <label>Mot de passe<input type="password" name="password" id="pw" autocomplete="current-password" required></label>
+      <div class="hint" id="pw-hint" hidden>10 caractères minimum, avec des lettres et des chiffres.</div>
+      <button class="primary" type="submit" id="go">Se connecter</button>
+      <div class="swap"><span id="swap-t">Pas encore de compte ?</span> <a href="#" id="swap">Créer un compte</a></div>
+    </div>
+    <div class="step" id="s-totp">
+      <h2>Double authentification</h2>
+      <p class="muted">Saisis le code à 6 chiffres affiché dans ton application d'authentification.</p>
+      <div class="otp" id="otp">
+        <input inputmode="numeric" maxlength="1"><input inputmode="numeric" maxlength="1"><input inputmode="numeric" maxlength="1">
+        <input inputmode="numeric" maxlength="1"><input inputmode="numeric" maxlength="1"><input inputmode="numeric" maxlength="1">
+      </div>
+      <a href="#" class="back" id="back">← Revenir</a>
+    </div>
+    <div class="err" id="err"></div>
+  </form>
+</main>
+<footer class="auth-foot">Connexion chiffrée · mots de passe hachés (bcrypt) · double authentification TOTP · verrouillage après 5 essais</footer>
+<script>
+const $ = (s) => document.querySelector(s);
+let mode = "login", ticket = null;
+const err = (m) => { $("#err").textContent = m || ""; if (m) gsap.fromTo("#f", { x: -6 }, { x: 0, duration: 0.4, ease: "elastic.out(1,0.3)" }); };
+const step = (id) => { document.querySelectorAll(".step").forEach((s) => s.classList.toggle("on", s.id === id)); gsap.from("#" + id, { opacity: 0, y: 10, duration: 0.4 }); };
+$("#swap").onclick = (e) => {
+  e.preventDefault(); mode = mode === "login" ? "register" : "login"; err();
+  $("#title").textContent = mode === "login" ? "Connexion" : "Créer un compte";
+  $("#go").textContent = mode === "login" ? "Se connecter" : "Créer mon compte";
+  $("#swap-t").textContent = mode === "login" ? "Pas encore de compte ?" : "Déjà inscrit ?";
+  $("#swap").textContent = mode === "login" ? "Créer un compte" : "Se connecter";
+  $("#pw").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("#pw-hint").hidden = mode === "login";
+};
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json().catch(() => ({ error: "Erreur serveur." }));
+}
+function enter() { gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, y: -10, duration: 0.45 }); gsap.to("#globe", { opacity: 0, scale: 1.15, duration: 0.7, onComplete: () => (location.href = "/") }); }
+$("#f").onsubmit = async (e) => {
+  e.preventDefault(); err();
+  $("#go").disabled = true;
+  const r = await post(mode === "login" ? "/api/auth/login" : "/api/auth/register", { email: $("#email").value, password: $("#pw").value });
+  $("#go").disabled = false;
+  if (r.ok) return enter();
+  if (r.need_totp) { ticket = r.ticket; step("s-totp"); setTimeout(() => $("#otp input").focus(), 50); return; }
+  err(r.error);
+};
+const boxes = [...document.querySelectorAll("#otp input")];
+boxes.forEach((b, i) => {
+  b.addEventListener("input", () => { b.value = b.value.replace(/\D/g, "").slice(-1); if (b.value && boxes[i + 1]) boxes[i + 1].focus(); check(); });
+  b.addEventListener("keydown", (e) => { if (e.key === "Backspace" && !b.value && boxes[i - 1]) boxes[i - 1].focus(); });
+  b.addEventListener("paste", (e) => { const d = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6); if (d.length === 6) { e.preventDefault(); boxes.forEach((x, j) => (x.value = d[j])); check(); } });
+});
+async function check() {
+  const code = boxes.map((b) => b.value).join("");
+  if (code.length < 6) return;
+  const r = await post("/api/auth/2fa", { ticket, code });
+  if (r.ok) return enter();
+  boxes.forEach((b) => (b.value = "")); boxes[0].focus(); err(r.error);
+  if (r.restart) step("s-cred");
+}
+$("#back").onclick = (e) => { e.preventDefault(); err(); step("s-cred"); };
+
+const tex = (() => { const c = document.createElement("canvas"); c.width = c.height = 4; const g = c.getContext("2d"); g.fillStyle = "#07080b"; g.fillRect(0, 0, 4, 4); return c.toDataURL(); })();
+const globe = Globe()($("#globe")).backgroundColor("rgba(0,0,0,0)").globeImageUrl(tex)
+  .showAtmosphere(true).atmosphereColor("#4a6fa5").atmosphereAltitude(0.12)
+  .hexPolygonResolution(3).hexPolygonMargin(0.45).hexPolygonUseDots(true).hexPolygonColor(() => "rgba(160,180,210,0.30)")
+  .ringColor(() => (t) => `rgba(138,180,255,${1 - t})`).ringMaxRadius(3.5).ringPropagationSpeed(1.2).ringRepeatPeriod(2400);
+globe.pointOfView({ lat: 30, lng: 10, altitude: 2.1 }, 0);
+const ctr = globe.controls(); ctr.autoRotate = true; ctr.autoRotateSpeed = 0.25; ctr.enableZoom = false;
+globe.ringsData([{ lat: 48.79, lng: 2.46 }, { lat: 40.7, lng: -74 }, { lat: 35.68, lng: 139.7 }, { lat: 50.1, lng: 8.68 }]);
+fetch("/static/img/countries-110m.json").then((r) => r.json()).then((topo) => globe.hexPolygonsData(topojson.feature(topo, topo.objects.countries).features.filter((f) => f.properties.name !== "Antarctica")));
+const size = () => globe.width(innerWidth).height(innerHeight);
+size(); addEventListener("resize", size);
+gsap.from("#globe", { opacity: 0, duration: 1.6 });
+gsap.from(".pitch > *, .card", { opacity: 0, y: 14, duration: 0.8, stagger: 0.12, delay: 0.2, ease: "power3.out" });
+</script>
+</body>
+</html>
