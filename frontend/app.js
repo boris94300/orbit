@@ -322,8 +322,8 @@ function renderGraph(animate) {
   evs.forEach((e) => e.positions.filter((p) => posIds.includes(p)).forEach((p) => links.push({ s: "e:" + e.event_id, t: "p:" + p, c: e.impact == null ? "#8b96a3" : e.impact >= 0 ? COL.up : COL.down, k: e.event_id })));
   pos.forEach((p) => links.push({ s: "p:" + p.id, t: "v:" + p.env, c: "#5b6672", k: null }));
   const path = (l) => { const a = N[l.s], b = N[l.t], x1 = a.x + a.w, y1 = a.y + 13, x2 = b.x, y2 = b.y + 13, m = (x1 + x2) / 2; return `M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`; };
-  const clip = (s, w) => (s.length * 6.4 > w - 70 ? s.slice(0, Math.max(8, Math.floor((w - 70) / 6.4))) + "…" : s);
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${links.map((l) => `<path class="glink" data-s="${esc(l.s)}" data-t="${esc(l.t)}" d="${path(l)}" stroke="${l.c}" stroke-width="1.3"/>`).join("")}${Object.values(N).map((n) => `<g class="gnode" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})"><rect width="${n.w}" height="26" rx="3"/><text x="9" y="17">${esc(clip(n.t, n.w))}</text><text class="m" x="${n.w - 8}" y="17" text-anchor="end">${esc(n.m)}</text></g>`).join("")}</svg>`;
+  const clip = (s, w, m = "") => { const room = w - 26 - m.length * 6.6; return s.length * 6.4 > room ? s.slice(0, Math.max(8, Math.floor(room / 6.4) - 1)) + "…" : s; };
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}">${links.map((l) => `<path class="glink" data-s="${esc(l.s)}" data-t="${esc(l.t)}" d="${path(l)}" stroke="${l.c}" stroke-width="1.3"/>`).join("")}${Object.values(N).map((n) => `<g class="gnode" data-id="${esc(n.id)}" transform="translate(${n.x},${n.y})"><rect width="${n.w}" height="26" rx="3"/><text x="9" y="17">${esc(clip(n.t, n.w, n.m))}</text><text class="m" x="${n.w - 8}" y="17" text-anchor="end">${esc(n.m)}</text></g>`).join("")}</svg>`;
   const svg = $("svg", box);
   if (animate) {
     $$(".glink", svg).forEach((p) => { const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; });
