@@ -259,7 +259,14 @@ async def get_investigate(id: str):
     return advisor.investigate(pf, advisor.build(payload, pf), id)
 
 
-app.mount("/static", StaticFiles(directory=FRONT), name="static")
+class Static(StaticFiles):
+    async def get_response(self, path, scope):
+        r = await super().get_response(path, scope)
+        r.headers["Cache-Control"] = "no-cache"
+        return r
+
+
+app.mount("/static", Static(directory=FRONT), name="static")
 
 
 @app.get("/")

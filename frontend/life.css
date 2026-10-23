@@ -209,7 +209,7 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   #me-name,.foot{display:none}
   #tabs button{font-size:12px;padding:6px 9px;white-space:nowrap}
   #v-vie.on{display:flex;flex-direction:column;padding:0 18px 20px;overflow-y:auto}
-  .stage{height:44vh;flex:none}
+
   .age-tag{top:14px}
   .age{font-size:54px}
   .side{padding-top:6px}
@@ -224,6 +224,7 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   .a-grid{display:flex;flex-direction:column}
   .a-log{max-height:60vh}
   .ev{grid-template-columns:1fr;gap:2px}
+  .ev .ag,.ev .kd,.ev .tx{grid-column:auto;grid-row:auto}
 }
 /* ma vie : leviers, aujourd'hui, jalons */
 .lv-t{font-size:11.5px;color:var(--tx3);letter-spacing:.02em;margin-bottom:8px}
@@ -265,7 +266,7 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
 .ms-card .x{position:absolute;right:12px;top:8px;color:var(--tx3);font-size:18px}
 .mc-n{display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--tx3)}
 .mc-n strong{color:var(--tx);font-weight:600;font-size:14px}
-@media (max-width:760px){.today,.levers{display:none}}
+
 /* mes choix : détail, composer */
 .c-head2{margin-top:22px}
 .cc-act{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
@@ -376,3 +377,67 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
 .a-in input:focus{border-color:rgba(138,180,255,.5)}
 @media (max-width:900px){#v-agents .a-grid{grid-template-columns:1fr}.a-top{flex-direction:column;align-items:flex-start}.a-chat{max-height:none}}
 .a-left>*{flex-shrink:0}
+/* adaptation à l'écran */
+@media (min-width:1800px) and (min-height:950px){html{zoom:1.2}}
+@media (min-width:2200px) and (min-height:1200px){html{zoom:1.45}}
+@media (min-width:3000px) and (min-height:1600px){html{zoom:1.9}}
+@media (max-width:1100px){
+  #v-vie.on{display:flex;flex-direction:column;gap:22px;padding:min(54vh,560px) 32px 0;overflow-y:auto}
+  .stage{display:contents}
+  #avatar,.loading{inset:0 0 auto 0;height:min(54vh,560px)}
+  .age-tag{left:32px}
+  .side{order:1;align-self:stretch;padding:0}
+  .story{max-width:none}
+  .levers{order:2;position:static;width:auto;display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
+  .levers .lv-t,.levers .goal,.levers .lv-act{grid-column:1/-1}
+  .today{order:3;position:static;max-width:none}
+  .timeline{order:4;position:sticky;bottom:0;background:var(--bg);padding:8px 0 10px;z-index:4;margin-top:auto}
+  .ms-card{position:fixed;left:16px;right:16px;bottom:130px;width:auto}
+  #v-agents.on{overflow-y:auto}
+  #v-agents .a-grid{flex:none;grid-template-columns:260px 1fr}
+  .a-left{overflow:visible}
+  .a-feed{height:72vh}
+  .a-right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;align-items:start}
+  .a-out{overflow:visible}
+  .a-chat{max-height:none}
+  .ev{grid-template-columns:100px 1fr;gap:1px 12px}
+  .ev time{display:none}
+  .ev .ag{grid-column:1;grid-row:1}
+  .ev .kd{grid-column:1;grid-row:2}
+  .ev .tx{grid-column:2;grid-row:1/span 2}
+}
+@media (max-width:900px){
+  .c-head{display:none}
+  .c-list,.pills{scrollbar-width:none}
+  .pills{max-width:100%;overflow-x:auto;align-self:stretch}
+  .pills button{flex:none}
+  #v-choix.on{grid-template-columns:1fr;gap:20px;padding:28px 28px 24px}
+  .c-list{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+  .c-list button{flex:none;width:auto;margin:0}
+  .c-list button span{display:none}
+  .c-top{flex-direction:column;gap:14px}
+}
+@media (max-width:760px){
+  #v-vie.on{padding:44vh 18px 0}
+  #avatar,.loading{height:44vh}
+  .age-tag{left:18px}
+  .levers{grid-template-columns:1fr}
+  .td-g{width:96px;height:96px}
+  #v-agents .a-grid{grid-template-columns:1fr}
+  .a-right{grid-template-columns:1fr}
+  .a-feed{height:auto}
+  .a-log{max-height:none;height:65vh}
+  .a-sky{max-width:240px}
+  .ev{grid-template-columns:1fr;gap:2px}
+  .ev .ag,.ev .kd,.ev .tx{grid-column:auto;grid-row:auto}
+  #v-choix.on{padding:22px 18px}
+  .c-cards{grid-template-columns:1fr!important}
+  .p-wrap{padding:28px 16px 120px}
+  .p-row{flex-wrap:wrap;gap:8px}
+  .p-in input,.p-in input[type=text]{width:140px}
+  .p-range input{width:120px}
+  .sec-setup{flex-direction:column;align-items:flex-start}
+  .drawer{padding:26px 20px}
+  .drawer h3{font-size:34px}
+  .dr-hist{grid-template-columns:1fr}
+}
