@@ -88,16 +88,37 @@
     <aside class="drawer" id="c-drawer"></aside>
   </section>
   <section class="view" id="v-agents">
-    <div class="a-top">
-      <div><h2>Agents en direct</h2><p>Cinq agents interrogent les sources publiques, recalculent ta projection et cherchent des ajustements. Rien n'est appliqué sans ton accord.</p></div>
+  <div class="a-top">
+    <div>
+      <h2>Ton équipe d'agents</h2>
+      <p>Cinq agents veillent sur ton avenir. Le premier surveille le monde, le deuxième calcule ce que ça change pour toi, le troisième cherche des solutions, le quatrième les contrôle. Et c'est toi qui décides.</p>
+    </div>
+    <div class="a-act">
+      <div class="a-impact" id="a-impact"></div>
       <button class="primary-sm" id="a-run">Lancer l'analyse</button>
     </div>
-    <div class="a-grid">
-      <ol class="a-pipe" id="a-pipe"></ol>
-      <div class="a-log" id="a-log"><div class="a-empty">Lance l'analyse pour voir chaque appel, chaque donnée reçue et chaque calcul, en direct.</div></div>
-      <aside class="a-out" id="a-out"></aside>
+  </div>
+  <div class="a-grid">
+    <div class="a-left">
+      <svg class="a-sky" id="a-sky" viewBox="0 0 300 300"></svg>
+      <div class="a-say" id="a-say">Lance l'analyse : les agents se passent le travail autour de toi.</div>
+      <ul class="a-team" id="a-team"></ul>
     </div>
-  </section>
+    <div class="a-feed">
+      <div class="a-feed-h"><span>Ce que font les agents, en direct</span><label class="a-tg"><input type="checkbox" id="a-tech"> Détail technique</label></div>
+      <div class="a-log simple" id="a-log"><div class="a-empty">Lance l'analyse pour voir l'équipe travailler.</div></div>
+    </div>
+    <div class="a-right">
+      <aside class="a-out" id="a-out"></aside>
+      <form class="a-chat" id="a-chat" autocomplete="off">
+        <div class="a-chat-h">Pose ta question au Conseiller IA <em id="a-mode"></em></div>
+        <div class="a-msgs" id="a-msgs"></div>
+        <div class="a-sugg" id="a-sugg"></div>
+        <div class="a-in"><input id="a-q" placeholder="Ex. : puis-je acheter à 300 000 € dans 2 ans ?" maxlength="300"><button class="primary-sm">Envoyer</button></div>
+      </form>
+    </div>
+  </div>
+</section>
   <section class="view" id="v-profil">
     <div class="p-wrap">
       <div class="p-head"><h2>Mon profil</h2><p>Ces informations restent sur ton compte. Elles servent uniquement à calculer tes projections.</p></div>

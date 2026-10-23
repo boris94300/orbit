@@ -55,3 +55,34 @@ async def rewrite(text):
         return out.strip()
     except Exception:
         return None
+
+
+WRITE = (
+    "Tu es le conseiller d'Orbit. Réécris ce constat pour un particulier, en français simple et chaleureux, tutoiement, "
+    "3 phrases maximum. Règles strictes : garde exactement les nombres fournis, n'en ajoute aucun, aucun produit nouveau, "
+    "pas d'emoji, pas de titre. Réponds uniquement par le texte."
+)
+
+
+def _key():
+    return os.environ["MISTRAL_API_KEY"]
+
+
+async def mistral(messages, tools=None, temperature=0.2):
+    body = {"model": os.getenv("MISTRAL_MODEL", "mistral-small-latest"), "messages": messages, "temperature": temperature}
+    if tools:
+        body["tools"], body["tool_choice"] = tools, "auto"
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post("https://api.mistral.ai/v1/chat/completions", headers={"Authorization": "Bearer " + _key()}, json=body)
+        r.raise_for_status()
+        return r.json()
+
+
+async def write(text):
+    if mode() != "Mistral":
+        return await rewrite(text)
+    try:
+        d = await mistral([{"role": "system", "content": WRITE}, {"role": "user", "content": text}])
+        return d["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None

@@ -1,4 +1,5 @@
 import os
+import time
 
 import json
 
@@ -6,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import advisor, agents, auth, feeds, horizon, life, live, portfolio
+from . import advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, team
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -168,6 +169,38 @@ async def _pf_payload():
 async def live_start(req: Request):
     u = _me(req)
     return {"run": live.start(u["id"], life.sanitize(auth.get_profile(u), life.BLANK))}
+
+
+@app.post("/api/agents/decide")
+async def agents_decide(req: Request):
+    u, b = _me(req), await req.json()
+    p = auth.get_profile(u)
+    cur = life.sanitize(p, life.BLANK)
+    entry = {"t": int(time.time()), "title": str(b.get("title", ""))[:80], "ok": bool(b.get("ok")), "gain": 0}
+    if entry["ok"]:
+        nxt = life.merge(cur, b.get("set") or {})
+        g = cur.get("goal_month") or 0
+        entry["gain"] = round(team._stats(nxt, g)["net"] - team._stats(cur, g)["net"])
+        p = dict(p, **nxt)
+    p["journal"] = (p.get("journal") or [])[-49:] + [entry]
+    auth.save_profile(u, p)
+    return {"entry": entry, "journal": p["journal"]}
+
+
+@app.get("/api/llm")
+def llm_mode():
+    return {"mode": llm.mode()}
+
+
+@app.post("/api/advisor/ask")
+async def advisor_ask(req: Request):
+    u, b = _me(req), await req.json()
+    if llm.mode() != "Mistral":
+        raise HTTPException(503, "Conseiller IA indisponible : clé Mistral non configurée")
+    try:
+        return await team.ask(life.sanitize(auth.get_profile(u), life.BLANK), str(b.get("q", "")), b.get("history"))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"Mistral indisponible ({type(e).__name__})")
 
 
 @app.get("/api/agents/live/{rid}")

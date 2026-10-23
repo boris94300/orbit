@@ -181,7 +181,8 @@ def start(uid, p):
         RUNS.pop(k, None)
     rid = uuid.uuid4().hex[:12]
     RUNS[rid] = Run(uid)
-    asyncio.get_running_loop().create_task(run(RUNS[rid], p))
+    from . import team
+    asyncio.get_running_loop().create_task(team.run(RUNS[rid], p))
     return rid
 
 
