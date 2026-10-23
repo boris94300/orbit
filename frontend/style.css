@@ -106,3 +106,59 @@ main{position:fixed;top:var(--top);left:var(--rail);right:0;bottom:0}
 .scene-tooltip{font:12px var(--sans)!important}
 .gt{background:var(--panel);border:1px solid var(--line2);padding:7px 10px;border-radius:4px;max-width:260px;color:var(--tx)}
 .gt small{display:block;color:var(--tx2);font:10.5px var(--mono);margin-top:2px}
+
+/* portefeuille */
+.scroll{position:absolute;inset:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.pf{padding:22px 28px 260px}
+.pf-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:18px}
+.pf-head h2{font-weight:500;font-size:22px;letter-spacing:-.01em;margin:2px 0 3px}
+.pf-sub{color:var(--tx2);font-size:12px}
+.kpis{display:flex;gap:0;border:1px solid var(--line);border-radius:6px}
+.kpi{padding:9px 18px;border-left:1px solid var(--line);min-width:150px}
+.kpi:first-child{border-left:0}
+.kpi .l{font-size:10.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em}
+.kpi .v{font:500 17px var(--mono);margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .s{font:11px var(--mono);color:var(--tx2)}
+.pf-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:14px;align-items:start}
+.card{border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:0}
+.card.pos{grid-row:span 2}
+.card.wide{grid-column:1/-1}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;padding:11px 14px 7px;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tx2)}
+.card-h.sub{border-top:1px solid var(--line);margin-top:8px}
+.card-h .src{font:400 10px var(--mono);letter-spacing:0;text-transform:none;color:var(--tx3)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{font-weight:500;font-size:10.5px;color:var(--tx3);text-align:right;padding:5px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{padding:6px 14px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl td.txt{font-family:var(--sans);font-size:12.5px;white-space:normal}
+.tbl td small{display:block;color:var(--tx3);font:10.5px var(--mono)}
+.tbl tr.grp td{color:var(--tx2);font:600 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;background:var(--bg2);padding:5px 14px}
+.tbl tr.hl td{background:var(--panel)}
+.tbl tr:last-child td{border-bottom:0}
+.wbar{display:inline-block;height:3px;background:var(--line2);width:60px;vertical-align:middle;margin-left:8px;position:relative}
+.wbar i{position:absolute;left:0;top:0;bottom:0;background:var(--tx2)}
+.donut-wrap{display:flex;align-items:center;gap:18px;padding:4px 14px 14px}
+#pf-donut{width:150px;height:150px;flex:none}
+.donut-legend{flex:1;font-size:12px}
+.donut-legend div{display:grid;grid-template-columns:10px 1fr auto auto;gap:8px;align-items:center;padding:3px 0}
+.donut-legend i{width:8px;height:8px;border-radius:2px}
+.donut-legend span{font:11.5px var(--mono);color:var(--tx2);text-align:right}
+.rbar{display:grid;grid-template-columns:120px 1fr 52px;gap:10px;align-items:center;padding:4px 14px;font-size:12px}
+.rbar .t{height:5px;background:var(--bg2);border-radius:2px;overflow:hidden}
+.rbar .t i{display:block;height:100%;background:var(--acc);width:0}
+.rbar span{font:11.5px var(--mono);text-align:right;color:var(--tx2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 14px 14px}
+.chip{font-size:11.5px;border:1px solid var(--line2);border-radius:4px;padding:2px 8px;color:var(--tx2)}
+.chip.warn{border-color:rgba(212,162,76,.45);color:var(--warn)}
+#pf-graph{padding:6px 14px 14px}
+#pf-graph svg{width:100%;display:block}
+.gnode rect{fill:var(--panel);stroke:var(--line2)}
+.gnode text{fill:var(--tx);font:12px var(--sans)}
+.gnode text.m{fill:var(--tx3);font:10.5px var(--mono)}
+.gnode{cursor:pointer}
+.glink{fill:none;stroke-opacity:.5;transition:stroke-opacity .15s}
+.dim .glink{stroke-opacity:.07} .dim .gnode{opacity:.35}
+.dim .glink.on{stroke-opacity:.85} .dim .gnode.on{opacity:1}
+.imp{font:10.5px var(--mono);padding:0 5px;border-radius:3px;margin-left:6px;border:1px solid var(--line2)}
+.imp.up{color:var(--up);border-color:rgba(63,178,127,.35)} .imp.down{color:var(--down);border-color:rgba(229,83,75,.35)} .imp.exp{color:var(--tx2)}
+.dot.arc{background:#e6e9ee}

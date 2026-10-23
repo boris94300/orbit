@@ -48,7 +48,7 @@
     <div class="globe-legend" id="globe-legend">
       <span><i class="dot up"></i>Marché en hausse</span><span><i class="dot down"></i>Marché en baisse</span>
       <span><i class="dot quake"></i>Séisme M4.5+</span><span><i class="dot nat"></i>Événement naturel</span>
-      <span><i class="dot news"></i>Actualité éco.</span>
+      <span><i class="dot news"></i>Actualité éco.</span><span><i class="dot arc"></i>Lien vers le portefeuille</span>
     </div>
   </div>
 
@@ -71,7 +71,22 @@
     </aside>
   </section>
 
-  <section class="view" id="view-portefeuille"><div class="placeholder"><div class="ph-k">Étape 2</div><h2>Portefeuille et expositions</h2><p>Allocation du client, graphe événement → actif, impact en euros des événements du jour.</p></div></section>
+  <section class="view" id="view-portefeuille">
+    <div class="pf scroll">
+      <div class="pf-head">
+        <div><div class="ph-k mono" id="pf-id"></div><h2 id="pf-name">Portefeuille</h2><div class="pf-sub" id="pf-sub"></div></div>
+        <div class="kpis" id="pf-kpis"></div>
+      </div>
+      <div class="pf-grid">
+        <div class="card pos"><div class="card-h">Positions <span class="src" id="pf-src"></span></div><table class="tbl" id="pf-table"></table></div>
+        <div class="card"><div class="card-h">Allocation par classe d'actifs</div><div class="donut-wrap"><svg id="pf-donut"></svg><div class="donut-legend" id="pf-alloc"></div></div></div>
+        <div class="card"><div class="card-h">Exposition géographique · actifs financiers</div><div id="pf-regions"></div>
+          <div class="card-h sub">Risques recensés · Créteil <span class="src" id="pf-risk-src"></span></div><div id="pf-risks" class="chips"></div></div>
+        <div class="card wide"><div class="card-h">Graphe d'exposition · événements du jour → positions → enveloppes <span class="src">survol pour isoler · clic pour localiser</span></div><div id="pf-graph"></div></div>
+        <div class="card wide"><div class="card-h">Expositions détaillées <span class="src" id="pf-exp-n"></span></div><table class="tbl" id="pf-exp"></table></div>
+      </div>
+    </div>
+  </section>
   <section class="view" id="view-horizon"><div class="placeholder"><div class="ph-k">Étape 3</div><h2>Horizon 60</h2><p>Projection Monte-Carlo du patrimoine à 60 ans, probabilité d'atteindre l'objectif, briefing.</p></div></section>
   <section class="view" id="view-agents"><div class="placeholder"><div class="ph-k">Étape 4</div><h2>Agents et journal d'audit</h2><p>Pipeline veille → exposition → projection → conformité → action, mandat et validations.</p></div></section>
   <section class="view" id="view-conseiller"><div class="placeholder"><div class="ph-k">Étape 5</div><h2>Vue conseiller</h2><p>Clients de l'agence exposés à un événement, priorisation et messages préparés.</p></div></section>
