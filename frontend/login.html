@@ -59,7 +59,7 @@ async function post(url, body) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return r.json().catch(() => ({ error: "Erreur serveur." }));
 }
-function enter() { gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, y: -10, duration: 0.45 }); gsap.to("#globe", { opacity: 0, scale: 1.15, duration: 0.7, onComplete: () => (location.href = "/") }); }
+function enter() { setTimeout(() => (location.href = "/"), 1200); gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, y: -10, duration: 0.45 }); gsap.to("#globe", { opacity: 0, scale: 1.15, duration: 0.7, onComplete: () => (location.href = "/") }); }
 $("#f").onsubmit = async (e) => {
   e.preventDefault(); err();
   $("#go").disabled = true;
