@@ -109,7 +109,7 @@ function finish(s) {
 const SUGG = ["Puis-je acheter un appartement à 300 000 € dans 2 ans ?", "Et si je partais à la retraite à 62 ans ?", "Combien épargner pour avoir 2 000 € par mois ?"];
 $("#a-sugg").innerHTML = SUGG.map((q) => `<button type="button">${q}</button>`).join("");
 $("#a-sugg").onclick = (e) => { const b = e.target.closest("button"); if (b) { $("#a-q").value = b.textContent; $("#a-chat").requestSubmit(); } };
-const ARG = { epargne_mois: (v) => `épargne ${nf(v)} €/mois`, part_actions: (v) => `${nf(v)} % actions`, age_retraite: (v) => `retraite à ${nf(v)} ans`, achat_prix: (v) => `achat ${nf(v)} €`, achat_dans_ans: (v) => `dans ${nf(v)} ans`, achat_apport: (v) => `apport ${nf(v)} €` };
+const ARG = { epargne_mois: (v) => `épargne ${nf(v)} €/mois`, part_actions: (v) => `${nf(v)} % actions`, age_retraite: (v) => `retraite à ${nf(v)} ans`, objectif_eur_mois: (v) => `objectif ${nf(v)} €/mois`, chances_pct: (v) => `${nf(v)} % de chances`, achat_prix: (v) => `achat ${nf(v)} €`, achat_dans_ans: (v) => `dans ${nf(v)} ans`, achat_apport: (v) => `apport ${nf(v)} €` };
 $("#a-chat").onsubmit = async (e) => {
   e.preventDefault();
   const q = $("#a-q").value.trim(); if (!q) return;
@@ -122,7 +122,10 @@ $("#a-chat").onsubmit = async (e) => {
   if (!r.ok) { el.textContent = (await r.json().catch(() => ({}))).detail || "Conseiller indisponible."; return; }
   const d = await r.json();
   chat.push({ role: "user", content: q }, { role: "assistant", content: d.answer });
-  const tr = d.trace.map((t) => `<span>simuler(${Object.entries(t.args).map(([k, v]) => (ARG[k] || ((x) => k + " " + x))(v)).join(", ") || "profil actuel"}) → ${t.result.chances_objectif_pct} % · ${nf(t.result.revenu_median_retraite_eur_mois)} €/mois${t.result.taux_endettement_pct != null ? ` · endettement ${t.result.taux_endettement_pct} %` : ""} · ${t.result.controle}</span>`).join("");
+  const args = (a) => Object.entries(a).map(([k, v]) => (ARG[k] || ((x) => k.replace(/_/g, " ") + " " + x))(v)).join(", ");
+  const tr = d.trace.map((t) => { const r = t.result;
+    if (t.tool === "epargne_necessaire") return `<span>epargne_necessaire(${args(t.args)}) → ${r.epargne_necessaire_eur_mois != null ? `${nf(r.epargne_necessaire_eur_mois)} €/mois (${r.effort_supplementaire_eur_mois >= 0 ? "+" : ""}${nf(r.effort_supplementaire_eur_mois)}) · ${r.controle}` : esc(r.message || r.erreur)}</span>`;
+    return `<span>simuler(${args(t.args) || "profil actuel"}) → ${r.chances_objectif_pct} % · ${nf(r.revenu_median_retraite_eur_mois)} €/mois${r.taux_endettement_pct != null ? ` · endettement ${r.taux_endettement_pct} %` : ""} · ${r.controle}</span>`; }).join("");
   el.innerHTML = `${tr ? `<div class="m-tr">${tr}</div>` : ""}${esc(d.answer)}<small>Mistral · ${nf(d.ms / 1000, 1)} s · ${d.trace.length} calcul${d.trace.length > 1 ? "s" : ""} du moteur · ${d.checked ? "chiffres vérifiés" : "à vérifier : un chiffre ne vient pas du moteur"}</small>`;
   box.scrollTop = box.scrollHeight;
 };
