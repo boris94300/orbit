@@ -137,16 +137,20 @@
 <script type="module" src="/static/choices.js?v=5753347"></script>
 <script type="module" src="/static/agents.js?v=5753347"></script>
 <script>
-if (sessionStorage.getItem("orbit-landing")) {
-  sessionStorage.removeItem("orbit-landing");
-  const ov = document.createElement("div"); ov.id = "landing"; ov.innerHTML = '<i></i>';
-  document.body.appendChild(ov);
-  const r = document.getElementById("avatar").getBoundingClientRect();
-  const dot = ov.firstChild;
-  dot.style.left = (r.left + r.width / 2) + "px"; dot.style.top = (r.top + r.height * 0.45) + "px";
-  gsap.fromTo(dot, { scale: 1.8, opacity: 1 }, { scale: 0.03, duration: 0.4, ease: "power3.out" });
-  gsap.to(dot, { scale: 0.3, opacity: 0, duration: 0.5, delay: 0.4, ease: "power2.out" });
-  gsap.to(ov, { backgroundColor: "rgba(0,0,0,0)", duration: 0.5, delay: 0.3, onComplete: () => ov.remove() });
+if (sessionStorage.getItem("orbit-landing") || document.prerendering) {
+  const ov = document.createElement("div"); ov.id = "landing"; document.body.appendChild(ov);
+  let done = false;
+  const reveal = () => {
+    if (done) return; done = true;
+    gsap.fromTo("main,.nav", { scale: 1.03 }, { scale: 1, duration: 0.8, ease: "power2.out", clearProps: "transform" });
+    gsap.to(ov, { opacity: 0, duration: 0.7, ease: "power2.out", onComplete: () => ov.remove() });
+  };
+  const start = () => {
+    sessionStorage.removeItem("orbit-landing");
+    if (window.orbitAvatarReady) reveal(); else addEventListener("orbit:avatar", reveal, { once: true });
+    setTimeout(reveal, 1800);
+  };
+  if (document.prerendering) document.addEventListener("prerenderingchange", start, { once: true }); else start();
 }
 </script>
 </body>

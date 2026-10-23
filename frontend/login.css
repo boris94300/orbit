@@ -33,4 +33,3 @@ body.auth{background:radial-gradient(900px 600px at 70% 50%,rgba(90,120,180,.10)
   .auth-foot{position:static;padding:0 22px 18px;margin-top:-72px}
 }
 #land-cap{position:fixed;left:0;right:0;bottom:16vh;text-align:center;font-size:22px;font-weight:500;letter-spacing:-.02em;color:var(--tx);opacity:0;z-index:3;pointer-events:none}
-#land-dot{position:fixed;left:50%;top:50%;width:600px;height:600px;margin:-300px 0 0 -300px;border-radius:50%;background:radial-gradient(circle,#fff 0,#cfe0ff 35%,rgba(138,180,255,.35) 60%,transparent 72%);opacity:0;transform:scale(.005);z-index:3;pointer-events:none}

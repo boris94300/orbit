@@ -40,8 +40,9 @@
     <div class="err" id="err"></div>
   </form>
 </main>
-<div id="land-cap"></div><div id="land-dot"></div>
+<div id="land-cap"></div>
 <footer class="auth-foot">Connexion chiffrée · mots de passe hachés (bcrypt) · double authentification TOTP · verrouillage après 5 essais</footer>
+<link rel="prefetch" href="/static/vendor/xbot.glb">
 <script>
 const $ = (s) => document.querySelector(s);
 let mode = "login", ticket = null;
@@ -72,11 +73,15 @@ async function locate() {
 function enter() {
   const go = () => { sessionStorage.setItem("orbit-landing", "1"); location.href = "/"; };
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return go();
+  if (HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) {
+    const sr = document.createElement("script"); sr.type = "speculationrules";
+    sr.textContent = JSON.stringify({ prerender: [{ source: "list", urls: ["/"] }] }); document.head.appendChild(sr);
+  }
   document.body.style.overflow = "hidden"; scrollTo(0, 0);
   ctr.autoRotate = false; globe.ringsData([]);
   gsap.to(".auth-main,.auth-foot,.auth-top", { opacity: 0, duration: 0.25, pointerEvents: "none" });
   gsap.to("#globe", { x: 0, y: 0, opacity: 1, duration: 0.8, ease: "power2.out" });
-  const T = 1250, t0 = performance.now(), cur = globe.pointOfView();
+  const T = 1350, t0 = performance.now(), cur = globe.pointOfView();
   const aim = (lat, lng, ms) => globe.pointOfView({ lat, lng: cur.lng + ((((lng - cur.lng) % 360) + 540) % 360) - 180, altitude: 0.1 }, ms);
   aim(48.8566, 2.3522, T);
   locate().then((c) => {
@@ -85,11 +90,9 @@ function enter() {
     const left = T - (performance.now() - t0);
     if (left > 250 && Math.hypot(c.lat - 48.8566, c.lng - 2.3522) > 0.6) aim(c.lat, c.lng, left);
   });
-  gsap.to("#land-cap", { opacity: 1, duration: 0.3, delay: 0.7 });
-  gsap.fromTo("#land-dot", { opacity: 0, scale: 0.005 }, { opacity: 1, scale: 0.03, duration: 0.3, delay: 0.85 });
-  gsap.to("#land-dot", { scale: 1.8, duration: 0.4, delay: 1.15, ease: "power2.in" });
-  gsap.to(["#globe", "#land-cap"], { opacity: 0, duration: 0.3, delay: 1.25 });
-  setTimeout(go, 1550);
+  gsap.to("#land-cap", { opacity: 1, duration: 0.4, delay: 0.5 });
+  gsap.to(["#globe", "#land-cap"], { opacity: 0, duration: 0.55, delay: 0.8, ease: "power1.in" });
+  setTimeout(go, 1350);
 }
 $("#f").onsubmit = async (e) => {
   e.preventDefault(); err();
@@ -119,7 +122,7 @@ $("#back").onclick = (e) => { e.preventDefault(); err(); step("s-cred"); };
 const tex = (() => { const c = document.createElement("canvas"); c.width = c.height = 4; const g = c.getContext("2d"); g.fillStyle = "#07080b"; g.fillRect(0, 0, 4, 4); return c.toDataURL(); })();
 const globe = Globe()($("#globe")).backgroundColor("rgba(0,0,0,0)").globeImageUrl(tex)
   .showAtmosphere(true).atmosphereColor("#4a6fa5").atmosphereAltitude(0.12)
-  .hexPolygonResolution((f) => (f.properties.name === "France" ? 5 : 3)).hexPolygonMargin(0.45).hexPolygonUseDots(true).hexPolygonColor((f) => (f.properties.name === "France" ? "rgba(185,205,240,0.42)" : "rgba(160,180,210,0.30)"))
+  .hexPolygonResolution((f) => (f.properties.name === "France" ? 4 : 3)).hexPolygonMargin(0.45).hexPolygonUseDots(true).hexPolygonColor((f) => (f.properties.name === "France" ? "rgba(185,205,240,0.42)" : "rgba(160,180,210,0.30)"))
   .ringColor(() => (t) => `rgba(138,180,255,${1 - t})`).ringMaxRadius(3.5).ringPropagationSpeed(1.2).ringRepeatPeriod(2400);
 globe.pointOfView({ lat: 30, lng: 10, altitude: 2.1 }, 0);
 const ctr = globe.controls(); ctr.autoRotate = true; ctr.autoRotateSpeed = 0.25; ctr.enableZoom = false;

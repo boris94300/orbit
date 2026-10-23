@@ -270,6 +270,7 @@ new GLTFLoader().load("/static/vendor/xbot.glb", (g) => {
   sad = mixer.clipAction(THREE.AnimationUtils.subclip(sadClip, "sad", 2, 3, 30));
   sad.blendMode = THREE.AdditiveAnimationBlendMode; sad.setEffectiveWeight(0); sad.play();
   $("#av-load").remove();
+  window.orbitAvatarReady = true; dispatchEvent(new Event("orbit:avatar"));
   gsap.from(uni.alpha, { value: 0, duration: 1.2 });
   gsap.from(model.position, { y: -0.15, duration: 1.4, ease: "power3.out" });
 });

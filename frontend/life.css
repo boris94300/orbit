@@ -441,5 +441,4 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   .drawer h3{font-size:34px}
   .dr-hist{grid-template-columns:1fr}
 }
-#landing{position:fixed;inset:0;z-index:100;background:#000;pointer-events:none}
-#landing i{position:absolute;width:600px;height:600px;margin:-300px 0 0 -300px;border-radius:50%;background:radial-gradient(circle,#fff 0,#cfe0ff 35%,rgba(138,180,255,.35) 60%,transparent 72%);transform:scale(.03)}
+#landing{position:fixed;inset:0;z-index:100;background:var(--bg);pointer-events:none}
