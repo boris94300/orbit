@@ -164,7 +164,23 @@ glow.rotation.x = -Math.PI / 2; glow.position.y = 0.001; scene.add(glow);
 const hairMat = new THREE.MeshStandardMaterial({ color: 0x3b2a20, roughness: 0.9, transparent: true, opacity: 0.55, depthWrite: false });
 const hair = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.42), hairMat);
 scene.add(hair);
-let model, mixer, bones = {}, idle, sad, sway = 0, drag = 0, dragging = null;
+let model, mixer, bones = {}, idle, run, walk, sad, drag = 0, dragging = null, phase = 0;
+const sm = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+/* chemin lumineux qui défile sous les pas */
+const path = new THREE.Group(); scene.add(path);
+const N_DOT = 150, dots = new Float32Array(N_DOT * 3), dcol = new Float32Array(N_DOT * 3), base = [];
+for (let i = 0; i < N_DOT; i++) { const row = i % 3; base.push([(row - 1) * 0.32, (Math.floor(i / 3) / (N_DOT / 3)) * 12 - 6]); }
+const dotGeo = new THREE.BufferGeometry();
+dotGeo.setAttribute("position", new THREE.BufferAttribute(dots, 3)); dotGeo.setAttribute("color", new THREE.BufferAttribute(dcol, 3));
+const dotTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 32; const g = c.getContext("2d"); const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, "#fff"); r.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
+path.add(new THREE.Points(dotGeo, new THREE.PointsMaterial({ size: 0.05, map: dotTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+let pathOff = 0;
+/* canne */
+const caneMat = holo(0xc9b28a, 0.35, 1.2);
+const cane = new THREE.Group();
+const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.013, 1, 12), caneMat); shaft.position.y = 0.5; cane.add(shaft);
+const crook = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.011, 8, 24, Math.PI), caneMat); crook.position.set(0.045, 1, 0); cane.add(crook);
+cane.visible = false; scene.add(cane);
 new GLTFLoader().load("/static/vendor/xbot.glb", (g) => {
   model = g.scene;
   model.traverse((o) => {
@@ -174,7 +190,8 @@ new GLTFLoader().load("/static/vendor/xbot.glb", (g) => {
   scene.add(model);
   mixer = new THREE.AnimationMixer(model);
   const clip = (n) => g.animations.find((a) => a.name === n);
-  idle = mixer.clipAction(clip("idle")); idle.play();
+  [idle, run, walk] = ["idle", "run", "walk"].map((n) => { const a = mixer.clipAction(clip(n)); a.play(); a.timeScale = 0; a.setEffectiveWeight(0); return a; });
+  idle.timeScale = 1;
   const sadClip = clip("sad_pose");
   THREE.AnimationUtils.makeClipAdditive(sadClip);
   sad = mixer.clipAction(THREE.AnimationUtils.subclip(sadClip, "sad", 2, 3, 30));
@@ -210,15 +227,35 @@ function frame() {
     const rel = mid[i].net > 0 ? at("net", cur) / mid[i].net : 1;
     const tTarget = THREE.MathUtils.clamp((1 - rel) * 2.2, 0, 1) * (0.35 + 0.65 * ae);
     tension += (tTarget - tension) * dt * 2;
-    idle.timeScale = 1 - 0.45 * ae;
+    /* allure : course → marche → pas courts avec canne */
+    const runW = 1 - sm(40, 52, age), damp = 0.5 * sm(72, 95, age), slow = 1 - 0.55 * sm(52, 92, age);
+    const rd = run.getClip().duration, wd = walk.getClip().duration;
+    phase = (phase + dt * (runW / rd + (1 - runW) * slow / wd)) % 1;
+    run.time = phase * rd; walk.time = phase * wd;
+    run.setEffectiveWeight(runW * (1 - damp)); walk.setEffectiveWeight((1 - runW) * (1 - damp)); idle.setEffectiveWeight(damp);
     sad.setEffectiveWeight(tension * 0.85);
     mixer.update(dt);
-    ["Spine", "Spine1", "Spine2"].forEach((n) => (bones[n].rotation.x += ae * 0.11));
-    bones.Neck.rotation.x += ae * 0.16; bones.Head.rotation.x -= ae * 0.05;
+    const old = sm(60, 95, age);
+    ["Spine", "Spine1", "Spine2"].forEach((n) => (bones[n].rotation.x += ae * 0.1 + old * 0.12));
+    bones.Neck.rotation.x += ae * 0.14 + old * 0.12; bones.Head.rotation.x -= ae * 0.06;
     bones.LeftArm.rotation.z += ae * 0.06; bones.RightArm.rotation.z -= ae * 0.06;
-    model.scale.setScalar(1 - 0.035 * ae);
-    sway += dt;
-    model.rotation.y = Math.sin(sway * 0.25) * 0.28 + drag;
+    bones.LeftUpLeg.rotation.x -= old * 0.12; bones.RightUpLeg.rotation.x -= old * 0.12;
+    bones.LeftLeg.rotation.x += old * 0.2; bones.RightLeg.rotation.x += old * 0.2;
+    const trem = sm(80, 95, age) * 0.012;
+    bones.Head.rotation.y += Math.sin(clock.elapsedTime * 23) * trem; bones.RightHand.rotation.z += Math.sin(clock.elapsedTime * 19) * trem * 1.5;
+    model.scale.setScalar(1 - 0.06 * ae);
+    model.position.y = -old * 0.035;
+    const yaw = 0.95 + drag;
+    model.rotation.y = yaw; path.rotation.y = yaw;
+    const speed = runW * 2.6 + (1 - runW) * 1.15 * slow;
+    pathOff = (pathOff + dt * speed * (1 - damp * 0.6)) % 12;
+    for (let k = 0; k < N_DOT; k++) {
+      let z = base[k][1] - pathOff; if (z < -6) z += 12;
+      dots[k * 3] = base[k][0]; dots[k * 3 + 1] = 0.004; dots[k * 3 + 2] = z;
+      const f = Math.max(0, 1 - Math.abs(z) / 6) ** 1.6;
+      dcol[k * 3] = uni.rim.value.r * f; dcol[k * 3 + 1] = uni.rim.value.g * f; dcol[k * 3 + 2] = uni.rim.value.b * f;
+    }
+    dotGeo.attributes.position.needsUpdate = dotGeo.attributes.color.needsUpdate = true;
     uni.rim.value.copy(cGood).lerp(cBad, tension * 0.9);
     floor.material.color.copy(uni.rim.value);
     model.updateMatrixWorld(true);
@@ -230,6 +267,18 @@ function frame() {
     const h = THREE.MathUtils.clamp((age - 42) / 30, 0, 1);
     hairMat.color.copy(young).lerp(grey, Math.min(1, h * 1.6)).lerp(white, Math.max(0, h * 1.6 - 0.6) / 1);
     hairMat.opacity = 0.5 - 0.12 * ae;
+    const caneW = sm(78, 82, age);
+    cane.visible = caneW > 0.01;
+    if (cane.visible) {
+      bones.RightHand.getWorldPosition(vA);
+      const fw = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+      vB.set(vA.x, 0, vA.z).addScaledVector(fw, 0.1);
+      const dir = vA.clone().sub(vB), L2 = dir.length();
+      cane.position.copy(vB); cane.quaternion.setFromUnitVectors(up, dir.normalize()); cane.scale.set(1, L2, 1);
+      crook.scale.set(1, 1 / L2, 1);
+      caneMat.opacity = caneW;
+      cane.traverse((o) => o.material && (o.material.visible = caneW > 0.05));
+    }
   }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
