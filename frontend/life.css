@@ -225,3 +225,44 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   .a-log{max-height:60vh}
   .ev{grid-template-columns:1fr;gap:2px}
 }
+/* ma vie : leviers, aujourd'hui, jalons */
+.lv-t{font-size:11.5px;color:var(--tx3);letter-spacing:.02em;margin-bottom:8px}
+.levers{position:absolute;left:0;top:170px;width:258px;z-index:2}
+.lv{display:grid;grid-template-columns:72px 26px 1fr 26px;align-items:center;gap:6px;padding:5px 0;font-size:13px}
+.lv span{color:var(--tx3);font-size:12px}
+.lv b{text-align:center;font-weight:500;font-variant-numeric:tabular-nums;transition:color .2s}
+.lv.ch b{color:var(--acc)}
+.lv button{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.07);color:var(--tx2);font-size:15px;line-height:1;transition:background .2s}
+.lv button:hover{background:rgba(255,255,255,.15);color:var(--tx)}
+.goal{display:grid;grid-template-columns:46px 1fr;gap:10px;align-items:center;margin-top:12px;font-size:12px;color:var(--tx2);line-height:1.4}
+.goal svg{width:46px;height:46px;transform:rotate(-90deg)}
+.goal circle{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4}
+.goal .arc{stroke-linecap:round;transition:stroke-dashoffset .6s cubic-bezier(.3,.7,.2,1)}
+.goal b{color:var(--tx);font-weight:600}
+.goal small{display:block;color:var(--tx3);font-size:11px;margin-top:3px}
+.lv-act{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12px;opacity:0;pointer-events:none;transform:translateY(6px);transition:all .3s}
+.lv-act.on{opacity:1;pointer-events:auto;transform:none}
+.lv-act span{color:var(--acc);margin-right:auto}
+.lv-act button:not(.primary-sm){color:var(--tx3)}
+.today{position:absolute;right:0;top:26px;display:flex;gap:12px;align-items:center;z-index:2;max-width:400px}
+.td-g{width:132px;height:132px;flex:none;opacity:.9}
+.td{display:grid;grid-template-columns:1fr auto;gap:0 10px;font-size:12.5px;padding:4px 0}
+.td span small{color:var(--tx3);font-size:10.5px;margin-left:6px}
+.td b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+.td em{grid-column:1/-1;font-style:normal;font-size:11px;color:var(--tx3)}
+.td em.dn{color:var(--bad)}.td em.up{color:var(--good)}
+.ms{position:relative;height:26px}
+.ms button{position:absolute;bottom:2px;transform:translateX(-50%);font-size:11.5px;color:var(--tx2);white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .2s}
+.ms button i{order:2;width:7px;height:7px;border-radius:50%;background:var(--tx2)}
+.ms button:hover{color:var(--tx)}
+.ms .m-ret{color:var(--acc)}.ms .m-ret i{background:var(--acc)}
+.ms .m-out{color:var(--bad)}.ms .m-out i{background:var(--bad)}
+.ms .m-buy i,.ms .m-loan i{background:var(--good)}
+.ms-card{position:absolute;right:0;bottom:16px;width:280px;padding:16px 18px;border-radius:16px;background:rgba(20,22,28,.82);backdrop-filter:blur(20px);border:1px solid var(--line);z-index:3;opacity:0;transform:translateY(10px);pointer-events:none;transition:all .35s cubic-bezier(.3,.7,.2,1)}
+.ms-card.on{opacity:1;transform:none;pointer-events:auto}
+.ms-card b{font-size:16px;font-weight:600}
+.ms-card p{font-size:12.5px;color:var(--tx2);line-height:1.5;margin-top:6px}
+.ms-card .x{position:absolute;right:12px;top:8px;color:var(--tx3);font-size:18px}
+.mc-n{display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--tx3)}
+.mc-n strong{color:var(--tx);font-weight:600;font-size:14px}
+@media (max-width:760px){.today,.levers{display:none}}

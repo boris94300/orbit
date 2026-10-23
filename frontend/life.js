@@ -45,14 +45,15 @@ const at = (key, t) => {
 async function load() {
   const r = await fetch("/api/life");
   if (r.status === 401) return (location.href = "/login");
-  L = await r.json();
+  L = await r.json(); sim = {};
   target = Math.min(target, L.horizon); cur = Math.min(cur, L.horizon);
   const p = L.profile;
   $("#t").max = L.horizon;
   const ret = p.retire_age - L.age0;
   const marks = [0, 10, 20, 30, 40, 50, 60].filter((y) => y <= L.horizon);
   $("#ticks").innerHTML = marks.map((y) => `<button data-y="${y}" style="left:${(y / L.horizon) * 100}%">${y ? "+" + y + " ans" : "Aujourd'hui"}<small>${L.age0 + y} ans</small></button>`).join("") +
-    (ret > 0 && ret < L.horizon ? `<button class="ret" data-y="${ret}" style="left:${(ret / L.horizon) * 100}%;top:-38px">Retraite</button>` : "");
+"";
+  renderExtras();
   $("#foot").textContent = `Historique ${L.history.status === "live" ? "en direct" : "en cache"} · ${L.history.sources.join(" · ")}`;
   drawChart();
 }
@@ -103,7 +104,7 @@ function drawChart(anim) {
 let lastTxt = "";
 function updatePanel(t) {
   const p = L.profile, age = L.age0 + t, year = Math.floor(L.start_year + t);
-  const net = at("net", t), fin = at("fin", t), home = at("home", t), debt = at("debt", t), wd = at("withdraw", t);
+  const net = at("net", t), fin = at("fin", t), home = at("home", t), debt = at("debt", t), wd = at("withdraw", Math.min(L.horizon, Math.max(t, L.profile.retire_age - L.age0 + 1)));
   $("#age").textContent = Math.floor(age);
   $("#yr").textContent = year;
   $("#net").textContent = eur(net);
@@ -129,6 +130,78 @@ function updatePanel(t) {
   $("#t").style.setProperty("--p", (t / L.horizon) * 100 + "%");
   $$("#ticks button").forEach((b) => b.classList.toggle("on", Math.abs(+b.dataset.y - t) < 0.5));
 }
+
+/* ---------- leviers, objectif, jalons ---------- */
+let sim = {}, simT;
+function renderExtras() {
+  const p = L.profile;
+  $$(".lv").forEach((el) => { el.querySelector("b").textContent = Math.round(p[el.dataset.k]).toLocaleString("fr-FR") + el.dataset.u; el.classList.toggle("ch", el.dataset.k in sim); });
+  $("#lv-act").classList.toggle("on", Object.keys(sim).length > 0);
+  const g = L.goal;
+  if (g) {
+    const pc = Math.round(g.prob * 100), C = 2 * Math.PI * 22;
+    $("#goal").innerHTML = `<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="arc" cx="27" cy="27" r="22" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - g.prob)}"/></svg><div><b>${pc} %</b> des séquences historiques te donnent ${eur(g.goal)} par mois à la retraite.<small>${g.extra ? `Pour y arriver en médiane : +${eur(g.extra)} d'épargne par mois.` : `Médiane : ${eur(g.median)} par mois.`}</small></div>`;
+    $("#goal .arc").style.stroke = g.prob >= 0.7 ? "var(--good)" : g.prob >= 0.4 ? "var(--acc)" : "var(--bad)";
+  } else $("#goal").innerHTML = "";
+  const rows = L.scenarios.mid.rows, ret = p.retire_age - L.age0, ms = [];
+  if (p.buy?.enabled) ms.push({ y: p.buy.in_years, l: "Achat du logement", k: "buy" });
+  let deb = rows.findIndex((r, i) => i > 0 && r.debt < 1 && rows[i - 1].debt >= 1);
+  if (deb > 0) ms.push({ y: deb, l: "Crédit remboursé", k: "loan" });
+  if (ret > 0 && ret < L.horizon) ms.push({ y: ret, l: "Retraite", k: "ret" });
+  const out = rows.findIndex((r, i) => i > ret && r.fin < 1);
+  if (out > 0) ms.push({ y: out, l: "Épargne épuisée", k: "out" });
+  const y80 = 80 - L.age0; if (y80 > 0 && y80 < L.horizon) ms.push({ y: y80, l: "80 ans", k: "80" });
+  $("#ms").innerHTML = ms.map((m) => `<button class="m-${m.k}" data-y="${m.y}" style="left:calc(11px + (100% - 22px) * ${m.y / L.horizon})"><i></i>${m.l}</button>`).join("");
+}
+async function simulate() {
+  const r = await fetch("/api/life/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ set: sim }) });
+  if (!r.ok) return;
+  const keep = sim; L = await r.json(); sim = keep;
+  drawChart(true); renderExtras();
+  const svg = d3.select("#chart");
+  svg.select(".band").transition().duration(400).attr("d", d3.area().x((d, i) => X(i)).y0((d) => Y(d[0])).y1((d) => Y(d[1])).curve(d3.curveMonotoneX)(L.band));
+}
+$("#levers").addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); if (!b || !L) return;
+  if (b.id === "lv-save") { await fetch("/api/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sim) }); sim = {}; return dispatchEvent(new Event("orbit:profile")); }
+  if (b.id === "lv-reset") { sim = {}; return load(); }
+  const el = b.closest(".lv"), k = el.dataset.k;
+  sim[k] = Math.min(+el.dataset.max, Math.max(+el.dataset.min, L.profile[k] + b.dataset.d * el.dataset.step));
+  L.profile[k] = sim[k]; renderExtras();
+  clearTimeout(simT); simT = setTimeout(simulate, 220);
+});
+$("#ms").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-y]"); if (!b) return;
+  const y = +b.dataset.y, r = L.scenarios.mid.rows[y], p = L.profile, age = L.age0 + y;
+  go(y);
+  const desc = {
+    buy: `Apport de ${eur(p.buy.down)}, crédit sur ${p.buy.years} ans à ${String(p.buy.rate).replace(".", ",")} %. Le loyer s'arrête, la mensualité commence.`,
+    loan: `Plus de mensualité : ce budget peut être épargné ou dépensé. Le logement vaut ${keur(r.home)}.`,
+    ret: `L'épargne commence à verser ${eur(L.scenarios.mid.rows[Math.min(y + 1, L.horizon)].withdraw)} par mois en complément de la pension.`,
+    out: `Dans le scénario médian, l'épargne financière est entièrement consommée à ${age} ans. Épargner un peu plus ou partir plus tard repousse ce moment.`,
+    80: `Patrimoine net médian : ${keur(r.net)}, dont ${keur(r.fin)} d'épargne financière.`,
+  }[b.className.replace("m-", "")];
+  $("#ms-card").innerHTML = `<button class="x">×</button><div class="lv-t">${L.start_year + y} · ${age} ans</div><b>${b.textContent}</b><p>${desc}</p><div class="mc-n"><span>Patrimoine net médian</span><strong>${keur(r.net)}</strong></div>`;
+  $("#ms-card").classList.add("on");
+});
+$("#ms-card").addEventListener("click", (e) => e.target.closest(".x") && $("#ms-card").classList.remove("on"));
+
+/* ---------- aujourd'hui pour toi ---------- */
+let mini;
+async function today() {
+  const r = await fetch("/api/today"); if (!r.ok) return;
+  const d = await r.json();
+  $("#td-list").innerHTML = d.items.map((i) => `<div class="td"><span>${i.label}<small>${i.src}</small></span><b>${i.value}</b>${i.effect != null ? `<em class="${i.effect < 0 ? "dn" : "up"}">${i.effect < 0 ? "−" : "+"}${eur(Math.abs(i.effect))} ${i.note}</em>` : `<em>${i.note}</em>`}</div>`).join("");
+  if (!window.Globe) return;
+  mini = mini || Globe()($("#mini-globe")).width(132).height(132).backgroundColor("rgba(0,0,0,0)").showAtmosphere(false).showGlobe(false)
+    .hexPolygonResolution(2).hexPolygonMargin(0.35).hexPolygonColor(() => "rgba(170,190,230,.55)")
+    .pointAltitude(0.02).pointRadius(2.4).pointColor((p) => (p.chg >= 0 ? "#7fd1a8" : "#ff9f6b"))
+    .ringColor((p) => () => (p.chg >= 0 ? "rgba(127,209,168,.6)" : "rgba(255,159,107,.6)")).ringMaxRadius(6).ringPropagationSpeed(2).ringRepeatPeriod(1600);
+  mini.pointsData(d.points).ringsData(d.points).pointOfView({ lat: 35, lng: 10, altitude: 2.2 });
+  mini.controls().autoRotate = true; mini.controls().autoRotateSpeed = 0.6; mini.controls().enableZoom = false;
+  fetch("/static/img/countries-110m.json").then((x) => x.json()).then((topo) => mini.hexPolygonsData(topojson.feature(topo, topo.objects.countries).features.filter((f) => f.properties.name !== "Antarctica")));
+}
+today();
 
 /* ---------- avatar ---------- */
 const canvas = $("#avatar");

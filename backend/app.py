@@ -180,7 +180,38 @@ def live_poll(rid: str, req: Request, since: int = 0):
 
 @app.get("/api/life")
 def get_life(req: Request):
-    return life.project(life.sanitize(auth.get_profile(_me(req)), life.BLANK))
+    p = life.sanitize(auth.get_profile(_me(req)), life.BLANK)
+    r = life.project(p)
+    r["goal"] = life.goal(p, r)
+    return r
+
+
+@app.post("/api/life/simulate")
+async def simulate_life(req: Request):
+    body = await req.json()
+    p = life.merge(life.sanitize(auth.get_profile(_me(req)), life.BLANK), body.get("set") or {})
+    r = life.project(p)
+    r["goal"] = life.goal(p, r)
+    return r
+
+
+@app.get("/api/today")
+async def today(req: Request):
+    p = life.sanitize(auth.get_profile(_me(req)), life.BLANK)
+    d = await feeds.collect(["markets", "rates"])
+    mk = {m["symbol"]: m for m in (d["markets"].get("data") or [])}
+    rt = {r["id"]: r for r in (d["rates"].get("data") or [])}
+    fr = lambda v: f"{v:+.2f} %".replace(".", ",")  # noqa: E731
+    items = []
+    cac, spx = mk.get("^FCHI"), mk.get("^GSPC")
+    if cac and spx:
+        ch = 0.6 * spx["change"] + 0.4 * cac["change"]
+        items.append({"label": "Bourse", "value": f"CAC 40 {fr(cac['change'])}", "src": "Yahoo Finance", "effect": p["invested"] * p["equity_share"] / 100 * ch / 100, "note": "sur tes placements aujourd'hui"})
+    if "dfr" in rt:
+        items.append({"label": "Taux BCE", "value": f"{rt['dfr']['value']:.2f} %".replace(".", ","), "src": f"BCE · {rt['dfr']['date']}", "note": "guide le Livret A et les taux de crédit"})
+    if "infl_fr" in rt:
+        items.append({"label": "Inflation", "value": f"{rt['infl_fr']['value']:.1f} %".replace(".", ","), "src": f"Eurostat · {rt['infl_fr']['date']}", "effect": -p["cash"] * rt["infl_fr"]["value"] / 100, "note": "de pouvoir d'achat par an sur tes livrets"})
+    return {"items": items, "points": [{"lat": m["lat"], "lng": m["lng"], "chg": m["change"], "name": m["name"]} for m in mk.values() if m.get("lat") is not None]}
 
 
 @app.get("/api/advisor")

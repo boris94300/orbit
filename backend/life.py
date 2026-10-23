@@ -6,19 +6,19 @@ from . import history
 DEMO = {
     "first_name": "Camille", "last_name": "Moreau", "birth_year": 1994, "city": "Créteil",
     "income_month": 3400, "savings_month": 450, "cash": 18400, "invested": 16000,
-    "equity_share": 60, "retire_age": 64, "housing": "locataire", "rent_month": 1150,
+    "equity_share": 60, "retire_age": 64, "goal_month": 1800, "housing": "locataire", "rent_month": 1150,
     "home_value": 0, "loan_remaining": 0, "loan_payment": 0,
     "buy": {"enabled": False, "in_years": 3, "price": 285000, "down": 30000, "rate": 3.2, "years": 25},
 }
 BLANK = {
     "first_name": "", "last_name": "", "birth_year": 1995, "city": "",
     "income_month": 2500, "savings_month": 200, "cash": 5000, "invested": 0,
-    "equity_share": 30, "retire_age": 64, "housing": "locataire", "rent_month": 800,
+    "equity_share": 30, "retire_age": 64, "goal_month": 1500, "housing": "locataire", "rent_month": 800,
     "home_value": 0, "loan_remaining": 0, "loan_payment": 0,
     "buy": {"enabled": False, "in_years": 5, "price": 250000, "down": 25000, "rate": 3.2, "years": 25},
 }
 LIMITS = {"birth_year": (1930, 2008), "income_month": (0, 100000), "savings_month": (0, 20000), "cash": (0, 1e7),
-          "invested": (0, 2e7), "equity_share": (0, 100), "retire_age": (50, 75), "rent_month": (0, 20000),
+          "invested": (0, 2e7), "equity_share": (0, 100), "retire_age": (50, 75), "goal_month": (0, 20000), "rent_month": (0, 20000),
           "home_value": (0, 2e7), "loan_remaining": (0, 2e7), "loan_payment": (0, 50000)}
 BUY_LIMITS = {"in_years": (0, 30), "price": (20000, 1e7), "down": (0, 1e7), "rate": (0, 12), "years": (5, 30)}
 CHARGES = 0.012      # taxe foncière + entretien, en % de la valeur du bien
@@ -168,5 +168,26 @@ def project(p, start_year=2026, horizon=None):
         v = sorted(r[k]["net"] for _, r in paths)
         band.append([v[int(0.1 * (len(v) - 1))], v[int(0.9 * (len(v) - 1))]])
     return {"start_year": start_year, "age0": age0, "horizon": horizon, "retire_age": p["retire_age"], "ref": ref,
-            "scenarios": sc, "band": band, "n_paths": len(paths), "history": {k: h[k] for k in ("method", "sources", "status", "fetched")},
+            "scenarios": sc, "band": band, "n_paths": len(paths),
+            "incomes": sorted(r[min(ref + 1, horizon)]["withdraw"] for _, r in paths), "history": {k: h[k] for k in ("method", "sources", "status", "fetched")},
             "profile": p}
+
+
+def _med_income(p, extra):
+    inc = project(merge(p, {"savings_month": p["savings_month"] + extra}))["incomes"]
+    return inc[len(inc) // 2]
+
+
+def goal(p, r):
+    g, inc = p.get("goal_month") or 0, r["incomes"]
+    if not g or not inc:
+        return None
+    med = inc[len(inc) // 2]
+    extra = None
+    if med < g and _med_income(p, 3000) >= g:
+        lo, hi = 0, 3000
+        while hi - lo > 25:
+            m = (lo + hi) // 2
+            lo, hi = (lo, m) if _med_income(p, m) >= g else (m, hi)
+        extra = hi
+    return {"goal": g, "prob": sum(x >= g for x in inc) / len(inc), "median": med, "extra": extra}
