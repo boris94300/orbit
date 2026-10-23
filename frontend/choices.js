@@ -214,3 +214,4 @@ const closeDr = () => { $("#c-drawer").classList.remove("on"); $("#dr-back").cla
 $("#dr-back").addEventListener("click", closeDr);
 $("#c-drawer").addEventListener("click", (e) => e.target.closest("#dr-x") && closeDr());
 addEventListener("keydown", (e) => e.key === "Escape" && closeDr());
+document.body.append($("#dr-back"), $("#c-drawer"));
