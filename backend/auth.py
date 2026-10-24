@@ -5,6 +5,7 @@ from urllib.parse import quote
 import bcrypt
 import qrcode
 import qrcode.image.svg
+from cryptography.fernet import Fernet, InvalidToken
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from . import life
@@ -31,6 +32,9 @@ def _key():
 
 
 SER = URLSafeTimedSerializer(_key())
+# Render (offre gratuite) efface data/ à chaque redémarrage : le navigateur garde une copie chiffrée du compte pour le restaurer.
+BOX = Fernet(base64.urlsafe_b64encode(hashlib.sha256(("orbit-backup:" + _key()).encode()).digest()))
+BACKUP_AGE = 60 * 24 * 3600
 
 
 def _db():
@@ -148,7 +152,7 @@ def second_factor(ticket, code, ip):
 def _ok(u):
     with _db() as c:
         c.execute("update users set fails=0, locked_until=0 where id=?", (u["id"],))
-    return {"ok": True, "cookie": SER.dumps({"uid": u["id"], "ver": u["ver"]}, salt="session"), "user": public(u)}
+    return {"ok": True, "cookie": SER.dumps({"uid": u["id"], "em": u["email"], "ver": u["ver"]}, salt="session"), "user": public(u)}
 
 
 def session_user(token):
@@ -158,8 +162,31 @@ def session_user(token):
         d = SER.loads(token, salt="session", max_age=SESSION_AGE)
     except BadSignature:
         return None
-    u = _user(uid=d["uid"])
+    u = _user(email=d["em"]) if d.get("em") else _user(uid=d["uid"])
     return u if u and u["ver"] == d["ver"] else None
+
+
+def backup(u):
+    pw = u["pw"].decode() if isinstance(u["pw"], bytes) else u["pw"]
+    d = {"t": time.time(), "email": u["email"], "pw": pw, "totp": u["totp"], "totp_on": u["totp_on"], "ver": u["ver"], "profile": u["profile"]}
+    return BOX.encrypt(json.dumps(d).encode()).decode()
+
+
+def restore(token):
+    try:
+        d = json.loads(BOX.decrypt((token or "").encode(), ttl=BACKUP_AGE))
+    except (InvalidToken, ValueError, TypeError):
+        return "invalid"
+    vals = (d["pw"].encode(), d["totp"], d["totp_on"], d["profile"], d["ver"], d["t"])
+    with _lock, _db() as c:
+        row = c.execute("select created from users where email=?", (d["email"],)).fetchone()
+        if not row:
+            c.execute("insert into users(pw,totp,totp_on,profile,ver,created,email) values(?,?,?,?,?,?,?)", vals + (d["email"],))
+            return "restored"
+        if row["created"] > d["t"]:
+            c.execute("update users set pw=?,totp=?,totp_on=?,profile=?,ver=?,created=? where email=?", vals + (d["email"],))
+            return "restored"
+    return "current"
 
 
 def logout_all(u):

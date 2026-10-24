@@ -47,6 +47,17 @@ async def register(req: Request):
     return _with_cookie(auth.login(b.get("email"), b.get("password"), _ip(req)), req)
 
 
+@app.get("/api/auth/backup")
+def auth_backup(req: Request):
+    return {"backup": auth.backup(_me(req))}
+
+
+@app.post("/api/auth/restore")
+async def auth_restore(req: Request):
+    b = await req.json()
+    return {"status": auth.restore(b.get("backup"))}
+
+
 @app.post("/api/auth/login")
 async def login(req: Request):
     b = await req.json()
