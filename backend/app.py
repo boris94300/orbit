@@ -204,13 +204,14 @@ def llm_mode():
 async def advisor_ask(req: Request):
     u, b = _me(req), await req.json()
     p = life.sanitize(auth.get_profile(u), life.BLANK)
-    if b.get("local") or llm.mode() != "Mistral":
+    if llm.mode() == "règles":
         r = team.local(p, str(b.get("q", ""))[:600])
         return dict(r, checked=True, ms=0, model="règles" if not b.get("local") else "local")
     try:
         return await team.ask(life.sanitize(auth.get_profile(u), life.BLANK), str(b.get("q", "")), b.get("history"))
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"Mistral indisponible ({type(e).__name__})")
+        print(f"conseiller {llm.mode()} : {type(e).__name__} {e}", flush=True)
+        return dict(team.local(p, str(b.get("q", ""))[:600]), checked=True, ms=0, model="règles")
 
 
 @app.get("/api/agents/live/{rid}")

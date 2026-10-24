@@ -231,7 +231,7 @@ function finish(s) {
   if ((s.risks || []).length) h += card("gardien", "les coups durs de la vie, chiffrés pour toi", `<div class="rks">${s.risks.map((r) => `<div class="rk"><div class="rk-h"><b>${esc(r.title)}</b><em class="dn">${keur(r.loss)}</em></div>
     <div class="rk-s">${esc(r.how)} Effet à ${r.at} ans${r.prob != null ? ` · chances ${Math.round(r.prob0 * 100)} % → ${Math.round(r.prob * 100)} %` : ""}</div>
     <div class="rk-p">${esc(r.protect)}</div><small>${esc(r.stat)}</small></div>`).join("")}</div>`, true);
-  if (s.note) h += card("conseiller", "en résumé", `<div class="nt">${esc(s.note)}<small>${s.mode === "Mistral" ? "Rédigé par Mistral · chiffres vérifiés un par un" : "Rédigé par règles (IA non configurée)"}</small></div>
+  if (s.note) h += card("conseiller", "en résumé", `<div class="nt">${esc(s.note)}<small>${s.mode !== "règles" ? `Rédigé par ${s.mode} · chiffres vérifiés un par un` : "Rédigé par règles (IA non configurée)"}</small></div>
     <div class="brief"><div><b>Ton rendez-vous à la banque</b><span>Une fiche d'une page avec ta situation, tes frais, tes risques et les questions à poser.</span></div><a class="primary-sm" href="/api/advisor/brief" target="_blank" rel="noopener">Préparer ma fiche PDF</a></div>`, true);
   const out = $("#a-out");
   gsap.to(out.children, { opacity: 0, y: -6, duration: 0.25, stagger: 0.03, onComplete: () => {
@@ -269,21 +269,12 @@ $("#a-chat").onsubmit = async (e) => {
   gsap.from(box.lastElementChild.previousElementSibling, { opacity: 0, x: 12, duration: 0.3 });
   box.scrollTop = box.scrollHeight;
   orbs.state("conseiller", "run");
-  const local = MODE === "local";
-  if (local && !(await loadLocal(el0()))) { orbs.state("conseiller", "done"); return; }
-  const r = await fetch("/api/advisor/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q, history: chat, local }) });
+  const r = await fetch("/api/advisor/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q, history: chat }) });
   orbs.state("conseiller", "done");
   const el = box.lastElementChild; el.classList.remove("wait");
   if (!r.ok) { el.textContent = (await r.json().catch(() => ({}))).detail || "Conseiller indisponible."; return; }
   const d = await r.json();
-  let how = d.model === "règles" ? "Réponse calculée par règles (IA non configurée)" : `Mistral · ${nf(d.ms / 1000, 1)} s`;
-  if (local) {
-    el.textContent = "L'IA locale rédige la réponse…";
-    const t0 = performance.now(), txt = await localWrite(q, d);
-    const ok = txt && numsOk(txt, d.facts + " " + d.answer + " " + q);
-    if (ok) d.answer = txt;
-    how = ok ? `IA locale (${LOCAL_MODEL.split("-").slice(0, 2).join(" ")}) · ${nf((performance.now() - t0) / 1000, 1)} s · rien n'a quitté ton navigateur` : "IA locale : un chiffre ne venait pas du moteur, réponse par règles affichée";
-  }
+  let how = d.model === "règles" ? "Réponse calculée par règles (IA non configurée)" : `${String(d.model || "").startsWith("claude") ? "Claude" : "Mistral"} · ${nf(d.ms / 1000, 1)} s`;
   chat.push({ role: "user", content: q }, { role: "assistant", content: d.answer });
   const args = (a) => Object.entries(a).map(([k, v]) => (ARG[k] || ((x) => k.replace(/_/g, " ") + " " + x))(v)).join(", ");
   const tr = d.trace.map((t) => { const r = t.result;
@@ -305,36 +296,5 @@ addEventListener("orbit:view", (e) => {
     if (!introduced) { introduced = true; orbs.intro(); setTimeout(() => !started && start(), 2600); } else orbs.layout();
   });
 });
-/* ---------- IA locale (WebLLM, dans le navigateur) ---------- */
-const LOCAL_MODEL = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
-let MODE = "cloud", engine = null, loading = null, cloud = "règles";
-const el0 = () => $("#a-msgs").lastElementChild;
-function modes() {
-  $("#a-mode").innerHTML = `<span class="a-modes"><button type="button" data-m="cloud" class="${MODE === "cloud" ? "on" : ""}">${cloud === "Mistral" ? "Mistral" : "Règles"}</button><button type="button" data-m="local" class="${MODE === "local" ? "on" : ""}">IA locale</button></span>`;
-}
-$("#a-mode").onclick = (e) => {
-  const b = e.target.closest("[data-m]"); if (!b) return;
-  MODE = b.dataset.m; modes();
-  if (MODE === "local" && !engine) $("#a-msgs").insertAdjacentHTML("beforeend", `<div class="m-a">IA locale : un petit modèle (environ 1 Go) sera téléchargé une seule fois, puis tournera sur ton ordinateur. Tes questions ne quitteront pas ton navigateur. Les chiffres viennent toujours du moteur Orbit.</div>`);
-};
-async function loadLocal(el) {
-  if (engine) return true;
-  if (!navigator.gpu) { el.classList.remove("wait"); el.textContent = "IA locale indisponible : ce navigateur n'a pas WebGPU (essaie Chrome ou Edge récent). Repasse en mode Mistral ou Règles."; return false; }
-  try {
-    loading = loading || import("https://esm.run/@mlc-ai/web-llm@0.2.86").then((w) => w.CreateMLCEngine(LOCAL_MODEL, {
-      initProgressCallback: (p) => { const m = el0(); if (m && m.classList.contains("wait")) m.textContent = `Chargement de l'IA locale : ${Math.round((p.progress || 0) * 100)} %`; } }));
-    engine = await loading; return true;
-  } catch (e) { loading = null; el.classList.remove("wait"); el.textContent = "Impossible de charger l'IA locale sur cet appareil."; return false; }
-}
-async function localWrite(q, d) {
-  try {
-    const r = await engine.chat.completions.create({ temperature: 0.2, max_tokens: 220, messages: [
-      { role: "system", content: "Tu es le Conseiller d'Orbit. Tu tutoies, en français simple, 3 phrases maximum, texte brut. Utilise uniquement les chiffres fournis, n'en invente aucun. Termine par un conseil concret. Tu ne passes aucun ordre." },
-      { role: "user", content: `Question : ${q}\nRéponse calculée par le moteur : ${d.answer}\nDonnées : ${d.facts}\nReformule la réponse calculée de façon chaleureuse et claire.` }] });
-    return r.choices[0].message.content.replace(/\*\*/g, "").trim();
-  } catch (e) { return null; }
-}
-const nums = (t) => (t.replace(/[\u202f\u00a0]/g, " ").match(/\d[\d ]*(?:[.,]\d+)?/g) || []).map((x) => +x.replace(/ /g, "").replace(",", ".")).filter((x) => x > 2);
-function numsOk(txt, src) { const S = new Set(nums(src)); return nums(txt).every((n) => S.has(n) || [...S].some((x) => Math.abs(x - n) <= Math.max(1, x * 0.005) || Math.abs(x / 1000 - n) < 1)); }
-fetch("/api/llm").then((r) => r.ok ? r.json() : null).then((d) => { cloud = d?.mode || "règles"; modes(); }).catch(modes);
+fetch("/api/llm").then((r) => r.ok ? r.json() : null).then((d) => { const m = d?.mode || "règles"; $("#a-mode").textContent = m === "règles" ? "· réponses par règles" : "· " + m; }).catch(() => {});
 team(); empty(); impact(); say("Les agents sont prêts. Lance l'analyse pour les voir travailler.");

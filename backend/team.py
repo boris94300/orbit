@@ -192,7 +192,7 @@ async def run(R: Run, p):
             note = None
             if s["mode"] != "règles":
                 t0 = time.perf_counter()
-                await R.emit("conseiller", "call", f"Rédaction par {s['mode']}", url="POST https://api.mistral.ai/v1/chat/completions" if s["mode"] == "Mistral" else s["mode"])
+                await R.emit("conseiller", "call", f"Rédaction par {s['mode']}", url={"Mistral": "POST https://api.mistral.ai/v1/chat/completions", "Claude": "POST https://api.anthropic.com/v1/messages"}.get(s["mode"], s["mode"]))
                 note = await llm.write(facts)
                 ms = round((time.perf_counter() - t0) * 1000)
                 if note and llm.guard(facts, note):
@@ -218,7 +218,7 @@ def _facts(p, s):
     ok = [o for o in s["options"] if o["verdict"] != "block"]
     if ok:
         b = ok[0]
-        out.append(f"La solution la plus utile : {b['title'][0].lower() + b['title'][1:]}, soit {_keur(b['gain'])} à la retraite et {round(b['prob'] * 100)} % de chances.")
+        out.append(f"La solution la plus utile : {b['title'][0].lower() + b['title'][1:]}, qui te laisserait {_keur(b['gain'])} de plus à la retraite, avec {round(b['prob'] * 100)} % de chances d'atteindre ton objectif.")
     bl = [o for o in s["options"] if o["verdict"] == "block"]
     if bl:
         out.append(f"La piste « {bl[0]['title'].lower()} » a été écartée : {bl[0]['why'][0][0].lower() + bl[0]['why'][0][1:]}")
@@ -293,11 +293,43 @@ def needed(p, a):
 def _profile_text(p):
     return (f"Profil : {p['first_name']}, {2026 - p['birth_year']} ans, {p['city']}, revenu {round(p['income_month'])} €/mois, épargne {round(p['savings_month'])} €/mois, "
             f"livrets {round(p['cash'])} €, placements {round(p['invested'])} € dont {p['equity_share']} % actions, logement : {p['housing']}, loyer {round(p['rent_month'])} €/mois, "
-            f"retraite visée à {p['retire_age']} ans, objectif {round(p.get('goal_month') or 0)} €/mois.")
+            f"retraite visée à {p['retire_age']} ans, objectif {round(p.get('goal_month') or 0)} €/mois. "
+            f"Hypothèses de crédit par défaut : apport {round(p['buy']['down'])} €, taux {p['buy']['rate']} %, durée {p['buy']['years']} ans.")
+
+
+def _run_tool(p, name, args):
+    return needed(p, args) if name == "epargne_necessaire" else simulate(p, args)
+
+
+async def ask_claude(p, question, history_msgs=None):
+    import json
+    trace, t0 = [], time.perf_counter()
+    tools = [{"name": t["function"]["name"], "description": t["function"]["description"], "input_schema": t["function"]["parameters"]} for t in TOOLS]
+    hist = [{"role": m["role"], "content": str(m["content"])} for m in (history_msgs or [])[-6:] if m.get("role") in ("user", "assistant") and m.get("content")]
+    while hist and hist[0]["role"] != "user":
+        hist.pop(0)
+    msgs = hist + [{"role": "user", "content": question[:600]}]
+    for _ in range(4):
+        d = await llm.claude(ASK + "\n" + _profile_text(p), msgs, tools)
+        uses = [b for b in d["content"] if b["type"] == "tool_use"]
+        if not uses:
+            src = _profile_text(p) + json.dumps([t["result"] for t in trace], ensure_ascii=False)
+            ans = llm._clean("".join(b.get("text", "") for b in d["content"]))
+            return {"answer": ans, "trace": trace, "checked": llm.guard(src + question, ans), "ms": round((time.perf_counter() - t0) * 1000), "model": d.get("model")}
+        msgs.append({"role": "assistant", "content": d["content"]})
+        out = []
+        for b in uses:
+            res = _run_tool(p, b["name"], b.get("input") or {})
+            trace.append({"tool": b["name"], "args": b.get("input") or {}, "result": res})
+            out.append({"type": "tool_result", "tool_use_id": b["id"], "content": json.dumps(res, ensure_ascii=False)})
+        msgs.append({"role": "user", "content": out})
+    return {"answer": "Je n'ai pas réussi à conclure, reformule ta question.", "trace": trace, "checked": True, "ms": 0}
 
 
 async def ask(p, question, history_msgs=None):
     import json
+    if llm.mode() == "Claude":
+        return await ask_claude(p, question, history_msgs)
     trace, t0 = [], time.perf_counter()
     msgs = [{"role": "system", "content": ASK + "\n" + _profile_text(p)}] + (history_msgs or [])[-6:] + [{"role": "user", "content": question[:600]}]
     for _ in range(4):

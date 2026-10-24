@@ -13,10 +13,10 @@ PROMPT = (
 
 
 def mode():
-    if os.getenv("MISTRAL_API_KEY"):
-        return "Mistral"
     if os.getenv("ANTHROPIC_API_KEY"):
         return "Claude"
+    if os.getenv("MISTRAL_API_KEY"):
+        return "Mistral"
     if os.getenv("OLLAMA_MODEL"):
         return "Ollama · " + os.getenv("OLLAMA_MODEL")
     return "règles"
@@ -53,7 +53,7 @@ async def rewrite(text):
             elif m == "Claude":
                 r = await c.post("https://api.anthropic.com/v1/messages",
                                  headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"},
-                                 json={"model": os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-latest"), "max_tokens": 400,
+                                 json={"model": "claude-haiku-4-5", "max_tokens": 400,
                                        "system": PROMPT, "messages": msgs[1:]})
                 out = r.json()["content"][0]["text"]
             else:
@@ -95,7 +95,36 @@ async def mistral(messages, tools=None, temperature=0.2):
             return r.json()
 
 
+CLAUDE = "https://api.anthropic.com/v1/messages"
+
+
+async def claude(system, messages, tools=None, max_tokens=700, models=None):
+    first = os.getenv("ANTHROPIC_MODEL")
+    models = models or ([first] if first else []) + [m for m in ("claude-haiku-4-5", "claude-sonnet-4-6") if m != first]
+    async with httpx.AsyncClient(timeout=40) as c:
+        for i, model in enumerate(models):
+            body = {"model": model, "max_tokens": max_tokens, "system": system, "messages": messages, "temperature": 0.2}
+            if tools:
+                body["tools"] = tools
+            r = await c.post(CLAUDE, headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"}, json=body)
+            if r.status_code in (404, 429, 500, 529) and i < len(models) - 1:
+                print(f"claude {model}: HTTP {r.status_code}, modèle suivant", flush=True)
+                continue
+            r.raise_for_status()
+            return r.json()
+
+
+def _clean(t):
+    return t.replace("**", "").replace("__", "").strip()
+
+
 async def write(text):
+    if mode() == "Claude":
+        try:
+            d = await claude(WRITE, [{"role": "user", "content": text}], max_tokens=400, models=["claude-haiku-4-5", "claude-sonnet-4-6"])
+            return _clean("".join(b.get("text", "") for b in d["content"]))
+        except Exception:
+            return None
     if mode() != "Mistral":
         return await rewrite(text)
     try:
