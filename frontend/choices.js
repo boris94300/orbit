@@ -146,8 +146,10 @@ function cards(first) {
       <div class="cc-hd"><div class="cc-l"><i></i>${v.label}</div>
       <div class="cc-v" data-v="${v.mid[H]}">${keur(v.mid[H])}</div></div><div class="cc-bd">
       <div class="cc-s">patrimoine net médian à ${age} ans</div>
+      ${(() => { const pd = Math.min(v.paid[H], v.fin[H]), gn = Math.max(0, v.fin[H] - v.paid[H]), hm = Math.max(0, v.home[H]); return `<div class="cc-split"><i style="flex:${pd}"></i><b style="flex:${gn}"></b><u style="flex:${hm}"></u></div>
+      <div class="cc-leg"><span><i></i>Versé par toi ${keur(pd)}</span><span><b></b>Gains des placements ${keur(gn)}</span>${hm > 1 ? `<span><u></u>Logement ${keur(hm)}</span>` : ""}</div>`; })()}
       ${i ? `<div class="cc-d ${diff >= 0 ? "up" : "dn"}">${diff >= 0 ? "+" : "−"}${keur(Math.abs(diff))} par rapport à « ${lc(base.label)} »</div>` : `<div class="cc-d">Référence</div>`}
-      <dl><dt>Si les marchés sont défavorables</dt><dd>${keur(v.bad[H])}</dd>
+      <dl><dt>Défavorable, avec coups durs de la vie</dt><dd>${keur(v.bad[H])}</dd>
       <dt>Si les marchés sont favorables</dt><dd>${keur(v.good[H])}</dd>
       <dt>Dont logement</dt><dd>${v.home[H] > 1 ? keur(v.home[H]) : "—"}</dd>
       <dt>Complément à la retraite</dt><dd>${v.income ? eur(v.income) + " / mois" : "—"}</dd></dl>
@@ -211,19 +213,23 @@ function detail(i) {
     credit = `<h4>Crédit immobilier</h4><dl class="dr-dl"><dt>Montant emprunté</dt><dd>${eur(k)}</dd><dt>Mensualité</dt><dd>${eur(m)}</dd>
       <dt>Intérêts payés sur ${p.buy.years} ans</dt><dd>${eur(m * n - k)}</dd><dt>Coût total du crédit</dt><dd>${eur(m * n)}</dd><dt>Remboursé à</dt><dd>${age(p.buy.in_years + p.buy.years)} ans</dd></dl>`;
   }
-  const yrs = Math.max(0, ret), contrib = p.cash + p.invested + p.savings_month * 12 * yrs, gain = Math.max(0, v.fin[ret] - contrib) * p.equity_share / 100;
+  const contrib = Math.min(v.paid[ret], v.fin[ret]), earned = Math.max(0, v.fin[ret] - v.paid[ret]), gain = earned * p.equity_share / 100;
   const rows = [...new Set([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, ret].filter((y) => y <= C.horizon))].sort((a, b) => a - b);
   $("#c-drawer").style.setProperty("--c", col(i));
   $("#c-drawer").innerHTML = `<button class="dr-x" id="dr-x">×</button>
     <div class="cc-l"><i></i>${v.label}</div><h3>${keur(v.mid[ret])}</h3><p class="dr-s">patrimoine net médian à la retraite, à ${p.retire_age} ans</p>
+    <h4>D'où vient ce patrimoine</h4>
+    <div class="cc-split big"><i style="flex:${contrib}"></i><b style="flex:${earned}"></b><u style="flex:${Math.max(0, v.home[ret])}"></u></div>
+    <dl class="dr-dl"><dt>Argent que tu as versé</dt><dd>${keur(contrib)}</dd><dt>Gains de tes placements</dt><dd>${keur(earned)}</dd>${v.home[ret] > 1 ? `<dt>Logement (valeur moins crédit)</dt><dd>${keur(v.home[ret])}</dd>` : ""}</dl>
+    <p class="dr-p">Chaque euro versé t'a rapporté en moyenne <b>${contrib > 0 ? (earned / contrib).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) : "0"} €</b> de gains, frais déduits.</p>
     <h4>Si tu avais commencé à une autre époque</h4>
     <div class="dr-hist">${[["Pire départ", worst], ["Départ en 2000, bulle internet", y2000], ["Meilleur départ", best]].filter((x) => x[1]).map(([l, x]) => `<div><span>${l}</span><b>${keur(x[1])}</b><small>marchés de ${x[0]} à ${x[0] + 29}</small></div>`).join("")}</div>
     ${credit}
     <h4>Fiscalité, estimation</h4><p class="dr-p">Environ <b>${keur(gain)}</b> de plus-values sur la part actions à la retraite. Imposées à 30 % sur un compte-titres (<b>${keur(gain * 0.3)}</b>), à 17,2 % seulement dans un PEA de plus de 5 ans (<b>${keur(gain * 0.172)}</b>). Le Livret A reste exonéré.</p>
     <h4>Année par année, en euros d'aujourd'hui</h4>
-    <table class="dr-t"><thead><tr><th>Âge</th><th>Défavorable</th><th>Médian</th><th>Favorable</th><th>Logement</th></tr></thead><tbody>
-    ${rows.map((y) => `<tr class="${y === ret ? "ret" : ""}"><td>${age(y)} ans<small>${C.start_year + y}</small></td><td>${keur(v.bad[y])}</td><td>${keur(v.mid[y])}</td><td>${keur(v.good[y])}</td><td>${v.home[y] > 1 ? keur(v.home[y]) : "—"}</td></tr>`).join("")}</tbody></table>
-    <p class="dr-n">${v.by_start.length} séquences de marché réelles (1996-2025) rejouées en boucle. Illustration, pas une promesse de rendement.</p>`;
+    <table class="dr-t"><thead><tr><th>Âge</th><th>Défavorable*</th><th>Médian</th><th>dont gains</th><th>Favorable</th><th>Logement</th></tr></thead><tbody>
+    ${rows.map((y) => `<tr class="${y === ret ? "ret" : ""}"><td>${age(y)} ans<small>${C.start_year + y}</small></td><td>${keur(v.bad[y])}</td><td>${keur(v.mid[y])}</td><td>${keur(Math.max(0, v.fin[y] - v.paid[y]))}</td><td>${keur(v.good[y])}</td><td>${v.home[y] > 1 ? keur(v.home[y]) : "—"}</td></tr>`).join("")}</tbody></table>
+    <p class="dr-n">* Défavorable : une mauvaise séquence de marché réelle, avec ${v.events.length ? v.events.map((e) => `${e.t.toLowerCase()} à ${e.age} ans`).join(", ") : "aucun coup dur avant la retraite"}. ${v.by_start.length} séquences de marché réelles (1996-2025) rejouées en boucle. Illustration, pas une promesse de rendement.</p>`;
   $("#c-drawer").classList.add("on"); $("#dr-back").classList.add("on");
   gsap.from("#c-drawer > *", { opacity: 0, x: 16, duration: 0.45, stagger: 0.03, delay: 0.1 });
 }

@@ -95,6 +95,13 @@ function drawChart(anim) {
     const p = svg.select(".ln-" + k).datum(L.scenarios[k].rows).attr("d", line);
     p.transition().duration(400).attr("stroke", k === sc ? "#f5f5f7" : "rgba(255,255,255,.18)").attr("stroke-width", k === sc ? 2 : 1);
   });
+  svg.selectAll(".ev").remove();
+  const evs = L.scenarios.bad.events || [], badRows = L.scenarios.bad.rows, on = sc === "bad";
+  evs.forEach((e, i) => {
+    const g = svg.append("g").attr("class", "ev").attr("transform", `translate(${X(e.y)},${Y(badRows[e.y].net)})`).attr("opacity", on ? 1 : 0.35);
+    g.append("circle").attr("r", on ? 4 : 3).attr("fill", "var(--bad)").attr("stroke", "#050506").attr("stroke-width", 1.5);
+    if (on) g.append("text").attr("y", i % 2 ? 17 : -9).attr("text-anchor", "middle").attr("fill", "var(--bad)").attr("font-size", 10.5).text(e.t);
+  });
   if (!anim) {
     const p = svg.select(".ln-mid").node(), len = p.getTotalLength();
     d3.select(p).attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().duration(1600).ease(d3.easeCubicOut).attr("stroke-dashoffset", 0).on("end", () => d3.select(p).attr("stroke-dasharray", null));
@@ -112,10 +119,12 @@ function updatePanel(t) {
   $("#when").textContent = t < 0.5 ? "Aujourd'hui" : `Dans ${Math.round(t)} an${Math.round(t) > 1 ? "s" : ""}`;
   gMark?.attr("transform", `translate(${X(t)},0)`).select("circle").attr("cy", Y(net));
   const s = L.scenarios[sc];
-  $("#replay").textContent = s.q === 0.5 ? `Médiane de ${L.n_paths} séquences de marché réelles (1996-2025) rejouées à partir d'aujourd'hui` : `${s.q < 0.5 ? "Seules 10 %" : "Seules 10 %"} des ${L.n_paths} séquences historiques font ${s.q < 0.5 ? "moins bien" : "mieux"} · proche des marchés de ${s.replay} à ${s.replay + 29}`;
+  const ev = s.events || [], evTxt = ev.map((e) => `${e.t.toLowerCase()} à ${e.age} ans`).join(", ").replace(/, ([^,]*)$/, " et $1");
+  if (s.q < 0.5) $("#replay").textContent = `Marchés de ${s.replay} à ${s.replay + 29} (seules 10 % des séquences font moins bien)${ev.length ? `, avec les coups durs de la vie : ${evTxt}` : ""}`;
+  else $("#replay").textContent = s.q === 0.5 ? `Médiane de ${L.n_paths} séquences de marché réelles (1996-2025) rejouées à partir d'aujourd'hui` : `${s.q < 0.5 ? "Seules 10 %" : "Seules 10 %"} des ${L.n_paths} séquences historiques font ${s.q < 0.5 ? "moins bien" : "mieux"} · proche des marchés de ${s.replay} à ${s.replay + 29}`;
   const retired = age >= p.retire_age, owner = home > 1;
   const txt = [
-    ["Épargne financière", keur(fin), retired ? "en cours de retrait" : `${eur(p.savings_month)} par mois`],
+    ["Épargne financière", keur(fin), retired ? "en cours de retrait" : t >= 0.5 ? `dont ${keur(Math.max(0, fin - at("paid", t)))} de gains` : `${eur(p.savings_month)} par mois`],
     ["Logement", owner ? keur(home - debt) : "Locataire", owner ? (debt > 1 ? `crédit restant ${keur(debt)}` : "bien remboursé") : `loyer ${eur(p.rent_month)} par mois`],
     [retired ? "Complément mensuel" : "Retraite", retired ? eur(wd) : `${p.retire_age} ans`, retired ? "tiré de l'épargne jusqu'à 90 ans" : `dans ${Math.max(0, Math.ceil(p.retire_age - age))} ans`],
   ];

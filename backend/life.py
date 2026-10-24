@@ -46,11 +46,12 @@ def _path(p, seq, start_year, horizon):
     idx, rows, cap_ret, withdraw = 1.0, [], None, 0.0
     fz = fees.annual(p) if p.get("fees", True) else {"ter": 0.0, "orders": 0.0, "sub": 0.0}
     paid = 0.0
-    sh = p.get("shock") or {}
+    shs = list(p.get("shocks") or []) + ([p["shock"]] if p.get("shock") else [])
+    paid_in = cash + eq
     for k in range(horizon + 1):
         age = age0 + k
         fin = cash + eq
-        rows.append({"net": (fin + home - debt) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx, "fees": paid,
+        rows.append({"net": (fin + home - debt) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx, "fees": paid, "paid": max(0.0, paid_in),
                      "rent": (p["rent_month"] if renting else 0), "withdraw": withdraw / 12 / idx if withdraw else 0})
         if k == horizon:
             break
@@ -58,23 +59,26 @@ def _path(p, seq, start_year, horizon):
         if buy.get("enabled") and renting and k == int(buy["in_years"]):
             price = buy["price"] * idx
             need = buy["down"] * idx + price * FEES
+            paid_in -= need / idx
             take = min(cash, need)
             cash -= take
             eq -= need - take
             home, debt = price, price - buy["down"] * idx
             pay = _payment(debt, buy["rate"], buy["years"])
             loan_left, renting = buy["years"], False
-        if sh and age == sh["age"] and sh.get("split"):
-            cash, eq = cash * (1 - sh["split"]), eq * (1 - sh["split"])
+        for sh in shs:
+            if age == sh["age"] and sh.get("split"):
+                cash, eq, paid_in = cash * (1 - sh["split"]), eq * (1 - sh["split"]), paid_in * (1 - sh["split"])
         working = age < p["retire_age"]
         housing = (p["rent_month"] * 12 * idx) if renting else ((pay * 12 if debt > 1 else 0) + CHARGES * home)
         flow = (budget0 * 12 * idx - housing) if working else 0.0
-        if sh:
+        for sh in shs:
             over = max(0.0, min(age + 1, sh["age"] + sh.get("pause", 0)) - max(age, sh["age"])) if working else 0.0
             flow -= (p["savings_month"] + sh.get("drain", 0)) * 12 * idx * over
             if sh.get("cost") and age >= sh["age"]:
                 flow -= sh["cost"] * 12 * idx
         if working:
+            paid_in += flow / idx
             cost = (fz["orders"] + fz["sub"]) * idx
             flow -= cost
             paid += cost / idx
@@ -85,6 +89,8 @@ def _path(p, seq, start_year, horizon):
             flow -= withdraw
         w = p["equity_share"] / 100 if working else max(0.2, p["equity_share"] / 100 - 0.02 * (age - p["retire_age"]))
         total = cash + eq + flow
+        if not working:
+            paid_in *= max(0.0, total) / max(1.0, cash + eq)
         safe = min(total, max(reserve * idx, (1 - w) * total))
         paid += (total - safe) * (1 + y["equity"]) * fz["ter"] / idx
         cash, eq = safe * (1 + y["safe"]), (total - safe) * (1 + y["equity"]) * (1 - fz["ter"])
@@ -158,11 +164,28 @@ def compare(p, variants, start_year=2026):
         ret = r["retire_age"] - r["age0"]
         out.append({"label": str(v.get("label", ""))[:40], "mid": [x["net"] for x in mid], "band": r["band"],
                     "bad": [x["net"] for x in r["scenarios"]["bad"]["rows"]], "good": [x["net"] for x in r["scenarios"]["good"]["rows"]],
-                    "home": [x["home"] - x["debt"] for x in mid], "fin": [x["fin"] for x in mid],
+                    "home": [x["home"] - x["debt"] for x in mid], "fin": [x["fin"] for x in mid], "paid": [x["paid"] for x in mid],
+                    "events": r["scenarios"]["bad"]["events"],
                     "income": mid[min(len(mid) - 1, ret + 1)]["withdraw"] if 0 <= ret < len(mid) - 1 else 0,
                     "by_start": r["by_start"], "ref": r["ref"], "profile": r["profile"]})
     return {"age0": 2026 - p["birth_year"], "start_year": start_year, "retire_age": p["retire_age"],
             "horizon": len(out[0]["mid"]) - 1 if out else 0, "variants": out}
+
+
+LIFE_EVENTS = [
+    ("Chômage", "un an sans épargne", "INSEE · Unédic", lambda a0: max(a0 + 5, 30), lambda p: {"pause": 1.0}),
+    ("Divorce", "épargne partagée, 2 ans sans épargner", "INSEE", lambda a0: max(a0 + 8, 38), lambda p: {"split": 0.5, "pause": 2.0}),
+    ("Arrêt maladie", "6 mois à demi-salaire", "Assurance maladie", lambda a0: max(a0 + 12, 44), lambda p: {"pause": 0.5, "drain": p["income_month"] * 0.5}),
+]
+
+
+def life_events(p, age0):
+    out = []
+    for t, d, src, at, sh in LIFE_EVENTS:
+        a = at(age0)
+        if age0 <= a < p["retire_age"]:
+            out.append({"t": t, "d": d, "src": src, "age": a, "shock": dict(sh(p), age=a)})
+    return out
 
 
 def project(p, start_year=2026, horizon=None):
@@ -178,12 +201,18 @@ def project(p, start_year=2026, horizon=None):
     ranked = sorted(paths, key=lambda x: x[1][ref]["net"])
     pick = lambda q: ranked[min(len(ranked) - 1, int(q * (len(ranked) - 1) + 0.5))]
     sc = {}
+    events = life_events(p, age0)
+    y_bad, _ = pick(0.1)
+    i_bad = next(i for i, x in enumerate(seqs) if x["year"] == y_bad)
+    bad_rows = _path(dict(p, shocks=[e["shock"] for e in events]), seqs[i_bad:] + seqs[:i_bad], start_year, horizon)
     for key, q, name in (("bad", 0.1, "Défavorable"), ("mid", 0.5, "Médian"), ("good", 0.9, "Favorable")):
         y0, _ = pick(q)
         rows = []
         for k in range(horizon + 1):
             rows.append({f: sorted(r[k][f] for _, r in paths)[int(q * (len(paths) - 1) + 0.5)] for f in paths[0][1][k]})
         sc[key] = {"name": name, "replay": y0, "q": q, "rows": rows}
+    sc["bad"]["rows"] = bad_rows
+    sc["bad"]["events"] = [{"y": e["age"] - age0, "age": e["age"], "t": e["t"], "d": e["d"], "src": e["src"]} for e in events]
     band = []
     for k in range(horizon + 1):
         v = sorted(r[k]["net"] for _, r in paths)
