@@ -91,7 +91,7 @@ def build(p, journal, stats):
 
     h("5. Coups durs testés par Orbit")
     for x in rk:
-        line(f"{x['title']} ({x['age']} ans)", f"{_k(x['loss'])} à {x['at']} ans")
+        line(x["title"] if " ans" in x["title"] else f"{x['title']} ({x['age']} ans)", f"{_k(x['loss'])} à {x['at']} ans")
 
     ok = [j for j in journal if j.get("ok")]
     if ok:
