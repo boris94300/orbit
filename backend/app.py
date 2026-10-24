@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import brief, advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, team
+from . import brief, advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, pro, score, team
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -181,6 +181,7 @@ async def agents_decide(req: Request):
         nxt = life.merge(cur, b.get("set") or {})
         g = cur.get("goal_month") or 0
         entry["gain"] = round(team._stats(nxt, g)["net"] - team._stats(cur, g)["net"])
+        entry["score"] = [score.compute(cur)["score"], score.compute(nxt)["score"]]
         p = dict(p, **nxt)
     p["journal"] = (p.get("journal") or [])[-49:] + [entry]
     auth.save_profile(u, p)
@@ -193,6 +194,30 @@ def advisor_brief(req: Request):
     p = auth.get_profile(u)
     pdf = brief.build(life.sanitize(p, life.BLANK), p.get("journal") or [], team._stats)
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="orbit-rendez-vous-banque.pdf"'})
+
+
+@app.get("/api/score")
+def get_score(req: Request):
+    return score.compute(life.sanitize(auth.get_profile(_me(req)), life.BLANK))
+
+
+def _demo_profile():
+    return auth.get_profile(auth._user(email=auth.DEMO_EMAIL))
+
+
+@app.get("/api/pro/clients")
+def pro_clients(req: Request):
+    _me(req)
+    return pro.portfolio(_demo_profile())
+
+
+@app.get("/api/pro/brief/{cid}")
+def pro_brief(cid: str, req: Request):
+    _me(req)
+    if cid != "boris" and cid not in pro.CLIENTS:
+        raise HTTPException(404, "client inconnu")
+    p, j = pro.profile_of(cid, _demo_profile())
+    return Response(brief.build(p, j, team._stats), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="orbit-{cid}.pdf"'})
 
 
 @app.get("/api/llm")
@@ -227,6 +252,7 @@ def get_life(req: Request):
     p = life.sanitize(auth.get_profile(_me(req)), life.BLANK)
     r = life.project(p)
     r["goal"] = life.goal(p, r)
+    r["score"] = score.compute(p, r)
     return r
 
 
@@ -236,6 +262,7 @@ async def simulate_life(req: Request):
     p = life.merge(life.sanitize(auth.get_profile(_me(req)), life.BLANK), body.get("set") or {})
     r = life.project(p)
     r["goal"] = life.goal(p, r)
+    r["score"] = score.compute(p, r)
     return r
 
 
@@ -293,5 +320,7 @@ def login_page():
 
 
 @app.get("/pro")
-def pro():
-    return FileResponse(os.path.join(FRONT, "pro.html"))
+def pro_page(req: Request):
+    if not auth.session_user(req.cookies.get(auth.COOKIE)):
+        return RedirectResponse("/login?next=/pro")
+    return FileResponse(os.path.join(FRONT, "conseiller.html"), headers={"Cache-Control": "no-store"})

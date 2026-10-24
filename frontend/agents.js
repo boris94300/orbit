@@ -158,12 +158,19 @@ function step(a, text) {
   gsap.from(out.lastElementChild, { opacity: 0, y: 10, duration: 0.45, ease: "power2.out" });
 }
 
+let shownScore = null;
 async function impact(bump) {
-  const r = await fetch("/api/profile"); if (!r.ok) return;
-  const p = await r.json(), j = (p.journal || []), ok = j.filter((e) => e.ok), sum = ok.reduce((a, e) => a + (e.gain || 0), 0);
-  $("#a-impact").innerHTML = j.length ? `<b class="${sum >= 0 ? "up" : "dn"}">${keur(sum)}</b><span>gagnés grâce à tes agents · ${ok.length} acceptée${ok.length > 1 ? "s" : ""}, ${j.length - ok.length} refusée${j.length - ok.length > 1 ? "s" : ""}</span>`
-    : `<b>0 €</b><span>Compteur d'impact : accepte une solution pour le voir monter</span>`;
-  if (bump) gsap.fromTo("#a-impact b", { scale: 1.3 }, { scale: 1, duration: 0.7, ease: "back.out(3)" });
+  const [r, rs] = await Promise.all([fetch("/api/profile"), fetch("/api/score")]); if (!r.ok || !rs.ok) return;
+  const p = await r.json(), sc = await rs.json(), j = (p.journal || []), ok = j.filter((e) => e.ok), sum = ok.reduce((a, e) => a + (e.gain || 0), 0);
+  const won = ok.reduce((a, e) => a + (e.score ? e.score[1] - e.score[0] : 0), 0), cls = sc.score >= 80 ? "up" : sc.score >= 60 ? "mid" : "dn";
+  $("#a-impact").innerHTML = `<div class="sc-mini ${cls}"><b>${shownScore ?? sc.score}</b><small>/100</small></div><span>Score Orbit · ${sc.label}${ok.length ? `<br>${won > 0 ? `+${won} points · ` : ""}${keur(sum)} gagnés grâce à tes agents` : "<br>Accepte une solution pour le faire monter"}</span>`;
+  const el = $("#a-impact .sc-mini b"), from = shownScore ?? sc.score;
+  shownScore = sc.score;
+  if (bump && from !== sc.score) {
+    const o = { v: from };
+    gsap.to(o, { v: sc.score, duration: 1.1, ease: "power2.out", onUpdate: () => (el.textContent = Math.round(o.v)) });
+    gsap.fromTo("#a-impact .sc-mini", { scale: 1.25 }, { scale: 1, duration: 0.9, ease: "back.out(3)" });
+  }
 }
 
 async function start() {
@@ -217,7 +224,7 @@ function finish(s) {
   const V = { ok: ["Validée par le Gardien", "v-ok"], warn: ["Validée avec réserve", "v-warn"], block: ["Bloquée par le Gardien", "v-block"] };
   if ((s.options || []).length) h += card("stratege", "solutions trouvées, contrôlées par le Gardien", `<div class="ops">${s.options.map((o, i) => `<div class="ao-c op ${V[o.verdict][1]}" data-i="${i}">
       <div class="op-h"><b>${esc(o.title)}</b><span class="vb">${V[o.verdict][0]}</span></div>
-      <div class="op-n"><span><b data-n="${Math.round(o.prob * 100)}" data-f="p"></b> de chances</span><span><b class="g ${o.gain >= 0 ? "up" : "dn"}" data-n="${Math.round(o.gain)}" data-f="k"></b></span></div>
+      <div class="op-n"><span><b data-n="${Math.round(o.prob * 100)}" data-f="p"></b> de chances</span><span><b class="g ${o.gain >= 0 ? "up" : "dn"}" data-n="${Math.round(o.gain)}" data-f="k"></b></span>${o.score != null ? `<span>Score <b>${s.score ?? "–"} → ${o.score}</b></span>` : ""}</div>
       <p>${o.why.map(esc).join("<br>")}</p>
       <div class="btns">${o.verdict === "block" ? `<span class="no">Non proposée</span>` : `<button class="primary-sm" data-do="ok">Accepter</button><button data-do="no">Refuser</button>`}</div></div>`).join("")}</div>`, true);
   const f = s.fees;

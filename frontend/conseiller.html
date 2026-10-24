@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit · Espace conseiller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="/static/vendor/gsap.min.js"></script>
+<style>
+:root{--bg:#050506;--tx:#f5f5f7;--tx2:#a1a1a6;--tx3:#6e6e73;--line:rgba(255,255,255,.08);--card:rgba(255,255,255,.035);--acc:#8ab4ff;--good:#7fd1a8;--bad:#ff9f6b;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+*{scrollbar-color:rgba(255,255,255,.15) transparent}
+body{background:radial-gradient(1200px 600px at 80% -10%,rgba(138,180,255,.08),transparent 60%),var(--bg);color:var(--tx);font-family:var(--font);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.nav{display:flex;align-items:center;gap:14px;padding:16px 28px;border-bottom:1px solid var(--line);flex:none}
+.logo{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:-.01em}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--acc);box-shadow:0 0 14px var(--acc)}
+.pill{font-size:12px;color:var(--tx2);border:1px solid var(--line);border-radius:20px;padding:4px 10px}
+.nav .sp{flex:1}
+.nav a{color:var(--tx2);text-decoration:none;font-size:13px}.nav a:hover{color:var(--tx)}
+.wrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;padding:22px 28px 16px;max-width:1500px;width:100%;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:none}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.kpi span{font-size:12px;color:var(--tx3)}
+.kpi b{display:block;font-size:28px;font-weight:600;letter-spacing:-.03em;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi small{font-size:11.5px;color:var(--tx2)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+.filters button{font-size:12.5px;border:1px solid var(--line);border-radius:20px;padding:6px 12px;color:var(--tx2);transition:.2s}
+.filters button.on{background:var(--tx);color:#000;border-color:var(--tx)}
+.filters button i{font-style:normal;opacity:.6;margin-left:4px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:18px}
+.list{overflow-y:auto;scrollbar-width:thin;display:flex;flex-direction:column;gap:6px;padding-right:4px}
+.cl{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;text-align:left;padding:10px 12px;border-radius:14px;border:1px solid transparent;transition:background .2s,border-color .2s}
+.cl:hover{background:var(--card)}.cl.on{background:rgba(255,255,255,.06);border-color:var(--line)}
+.cl b{font-weight:500;font-size:14px}.cl small{display:block;font-size:12px;color:var(--tx3);margin-top:2px}
+.tag{font-size:10.5px;color:var(--acc);border:1px solid rgba(138,180,255,.35);border-radius:10px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.dots{display:flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--bad)}.dots i.immo{background:var(--acc)}
+.ring{position:relative;width:44px;height:44px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4}.ring .arc{stroke-linecap:round}
+.ring>span{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:600}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px 26px;overflow-y:auto;scrollbar-width:thin}
+.d-head{display:flex;gap:20px;align-items:center}
+.d-head .ring{width:96px;height:96px}.d-head .ring>span{font-size:30px;letter-spacing:-.03em}
+.d-head h2{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.d-head p{color:var(--tx2);font-size:13px;margin-top:3px}
+.d-head .hl{color:var(--tx);font-size:14px;margin-top:8px}
+.d-act{margin-left:auto;display:flex;flex-direction:column;gap:8px}
+.btn{background:var(--tx);color:#000;border-radius:20px;padding:9px 16px;font-size:13px;font-weight:500;white-space:nowrap;text-decoration:none;text-align:center}
+.btn.g{background:none;color:var(--tx);border:1px solid var(--line)}
+.sec{margin-top:24px}
+.sec h3{font-size:12px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.figs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fig{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.fig span{font-size:11.5px;color:var(--tx3)}.fig b{display:block;font-size:19px;font-weight:600;margin-top:3px;letter-spacing:-.02em}
+.parts{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}
+.pt .l{display:flex;justify-content:space-between;font-size:13px}.pt .l b{font-variant-numeric:tabular-nums}
+.bar{height:5px;border-radius:5px;background:rgba(255,255,255,.07);margin:6px 0 4px;overflow:hidden}.bar i{display:block;height:100%;width:0;border-radius:5px}
+.pt small{font-size:11.5px;color:var(--tx3)}
+.al{display:grid;grid-template-columns:8px 1fr auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.al:first-of-type{border-top:0}
+.al>i{width:8px;height:8px;border-radius:50%;background:var(--bad);margin-top:5px}.al>i.immo{background:var(--acc)}
+.al b{font-size:14px;font-weight:500}.al p{font-size:12.5px;color:var(--tx2);margin-top:2px}.al em{display:block;font-style:normal;font-size:12.5px;color:var(--tx);margin-top:6px}
+.al .gain{color:var(--good);font-size:13px;font-weight:600;white-space:nowrap}
+.none{font-size:13px;color:var(--tx3)}
+.jr{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-top:1px solid var(--line)}
+.jr:first-of-type{border-top:0}.jr .ok{color:var(--good)}.jr .no{color:var(--tx3)}
+.foot{flex:none;font-size:11px;color:var(--tx3);text-align:center;padding:0 28px 12px}
+@media (max-width:900px){
+  body{overflow:auto;height:auto}.wrap{padding:16px}.nav{padding:14px 16px}.nav .pill{display:none}
+  .kpis{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.list{max-height:none;overflow:visible}
+  .detail{overflow:visible;padding:18px}.d-head{flex-wrap:wrap}.d-act{margin-left:0;flex-direction:row;width:100%}.d-act .btn{flex:1}
+  .parts{grid-template-columns:1fr}.figs{grid-template-columns:1fr 1fr}
+}
+@media (min-width:1800px){html{zoom:calc(100vw / 1600px)}}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="logo"><span class="dot"></span>Orbit</div>
+  <span class="pill">Espace conseiller · Agence Créteil</span>
+  <span class="sp"></span>
+  <a href="/">← Vue client</a>
+</header>
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div class="filters" id="filters"></div>
+  <div class="grid">
+    <div class="list" id="list"></div>
+    <div class="detail" id="detail"></div>
+  </div>
+</div>
+<div class="foot">Portefeuille de démonstration : clients fictifs, sauf Boris (compte démo, données en direct). Scores et alertes issus de simulations sur 30 séquences de marché réelles, pas de prédictions ni de notation de crédit.</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const nf = (v) => Math.round(v).toLocaleString("fr-FR");
+const keur = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " M€" : nf(v / 1000) + " k€");
+const col = (s) => (s >= 80 ? "var(--good)" : s >= 60 ? "var(--acc)" : "var(--bad)");
+const KIND = { frais: "Frais élevés", precaution: "Précaution insuffisante", prevoyance: "Peu protégés", retraite: "Retraite menacée", immo: "Projets immobiliers" };
+const ring = (s) => { const C = 2 * Math.PI * 22; return `<div class="ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="arc" cx="27" cy="27" r="22" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - s / 100)}" style="stroke:${col(s)}"/></svg><span>${s}</span></div>`; };
+let D, cur = "boris", filter = null;
+
+function count(el, to, fmt) { const o = { v: 0 }; gsap.to(o, { v: to, duration: 1, ease: "power2.out", onUpdate: () => (el.textContent = fmt(o.v)) }); }
+
+function renderTop() {
+  const k = D.kpi;
+  $("#kpis").innerHTML = [["Clients suivis", k.n, nf, "dont 1 en direct"], ["Score Orbit moyen", k.avg, nf, "sur 100"], ["Clients fragiles", k.fragile, nf, "score sous 60"], ["Frais récupérables", k.recoverable, keur, "d'ici la retraite, portefeuille entier"]]
+    .map(([l, v, , s]) => `<div class="kpi"><span>${l}</span><b>0</b><small>${s}</small></div>`).join("");
+  [k.n, k.avg, k.fragile, k.recoverable].forEach((v, i) => count($("#kpis").children[i].querySelector("b"), v, i === 3 ? keur : nf));
+  $("#filters").innerHTML = `<button data-k="" class="${filter ? "" : "on"}">Tous<i>${k.n}</i></button>` + Object.entries(KIND).filter(([id]) => k.kinds[id]).map(([id, l]) => `<button data-k="${id}" class="${filter === id ? "on" : ""}">${l}<i>${k.kinds[id]}</i></button>`).join("");
+}
+function renderList() {
+  const cl = D.clients.filter((c) => !filter || c.flags.some((f) => f.k === filter));
+  $("#list").innerHTML = cl.map((c) => `<button class="cl ${c.id === cur ? "on" : ""}" data-id="${c.id}">${ring(c.score)}<div><b>${c.name}</b>${c.live ? `<span class="tag">en direct</span>` : ""}<small>${c.age} ans · ${c.city} · ${c.label}</small></div><div class="dots">${c.flags.map((f) => `<i class="${f.k}" title="${f.t}"></i>`).join("")}</div></button>`).join("");
+  gsap.from("#list .cl", { opacity: 0, x: -12, stagger: 0.04, duration: 0.4, ease: "power2.out" });
+}
+function renderDetail() {
+  const c = D.clients.find((x) => x.id === cur); if (!c) return;
+  const ok = c.journal.filter((e) => e.ok);
+  $("#detail").innerHTML = `<div class="d-head">${ring(c.score)}<div><h2>${c.name}</h2><p>${c.age} ans · ${c.city} · ${nf(c.income)} € nets par mois</p><div class="hl">${c.headline}</div></div>
+      <div class="d-act"><a class="btn" href="/api/pro/brief/${c.id}" target="_blank">Fiche PDF de rendez-vous</a>${c.live ? `<a class="btn g" href="/">Ouvrir sa vue client</a>` : ""}</div></div>
+    <div class="sec"><h3>Chiffres clés</h3><div class="figs">
+      <div class="fig"><span>Épargne mensuelle</span><b>${nf(c.savings)} €</b></div>
+      <div class="fig"><span>Épargne aujourd'hui</span><b>${keur(c.cash + c.invested)}</b></div>
+      <div class="fig"><span>Patrimoine médian à ${c.retire_age} ans</span><b>${keur(c.net)}</b></div>
+      <div class="fig"><span>Complément visé</span><b>${c.goal ? nf(c.goal) + " €/mois" : "—"}</b></div>
+      <div class="fig"><span>Chances d'y arriver</span><b>${Math.round(c.prob * 100)} %</b></div>
+      <div class="fig"><span>Frais d'ici la retraite</span><b>${keur(c.fees)}</b></div></div></div>
+    <div class="sec"><h3>Score Orbit · ${c.score}/100</h3><div class="parts">${c.parts.map((x) => `<div class="pt"><div class="l"><span>${x.label}</span><b>${Math.round(x.pts)} / ${x.max}</b></div><div class="bar"><i data-w="${(x.pts / x.max) * 100}" style="background:${col((x.pts / x.max) * 100)}"></i></div><small>${x.text}</small></div>`).join("")}</div></div>
+    <div class="sec"><h3>Actions recommandées</h3>${c.flags.length ? c.flags.map((f) => `<div class="al"><i class="${f.k}"></i><div><b>${f.t}</b><p>${f.d}</p><em>→ ${f.a}</em></div>${f.gain ? `<span class="gain">+${keur(f.gain)}</span>` : "<span></span>"}</div>`).join("") : `<p class="none">Aucune alerte : un point annuel suffit.</p>`}</div>
+    <div class="sec"><h3>Décisions du client avec ses agents</h3>${c.journal.length ? c.journal.slice().reverse().map((e) => `<div class="jr"><span>${e.title}</span><span class="${e.ok ? "ok" : "no"}">${e.ok ? `Acceptée · ${e.gain >= 0 ? "+" : ""}${keur(e.gain)}${e.score ? ` · score ${e.score[0]} → ${e.score[1]}` : ""}` : "Refusée"}</span></div>`).join("") + (ok.length ? `<p class="none" style="margin-top:8px">Total validé par le client : ${keur(c.accepted)}. Chaque décision a été confirmée par le client, rien n'est appliqué sans lui.</p>` : "") : `<p class="none">${c.live ? "Aucune décision pour l'instant. Elles apparaissent ici dès que le client accepte ou refuse une solution de ses agents." : "Client fictif : pas d'historique de décisions."}</p>`}</div>`;
+  gsap.from("#detail > *", { opacity: 0, y: 10, stagger: 0.05, duration: 0.45, ease: "power2.out" });
+  document.querySelectorAll("#detail .bar i").forEach((i) => gsap.to(i, { width: i.dataset.w + "%", duration: 0.9, delay: 0.2, ease: "power2.out" }));
+  const C = 2 * Math.PI * 22; gsap.from("#detail .d-head .arc", { strokeDashoffset: C, duration: 1.1, ease: "power2.out" });
+}
+$("#list").onclick = (e) => { const b = e.target.closest(".cl"); if (!b) return; cur = b.dataset.id; document.querySelectorAll(".cl").forEach((x) => x.classList.toggle("on", x === b)); renderDetail(); if (innerWidth <= 900) $("#detail").scrollIntoView({ behavior: "smooth" }); };
+$("#filters").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; filter = b.dataset.k || null; document.querySelectorAll("#filters button").forEach((x) => x.classList.toggle("on", x === b)); renderList(); };
+(async () => {
+  const r = await fetch("/api/pro/clients"); if (r.status === 401) return (location.href = "/login?next=/pro");
+  D = await r.json(); renderTop(); renderList(); renderDetail();
+})();
+</script>
+</body>
+</html>

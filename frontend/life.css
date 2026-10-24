@@ -581,3 +581,25 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   .lv-act{margin-top:8px}
 }
 @media (min-width:1101px) and (max-height:600px){.goal{display:none}}
+
+/* Score Orbit */
+.goal{cursor:pointer}
+.sc-ring{position:relative;width:46px;height:46px}
+.sc-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.sc-ring>b{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;letter-spacing:-.02em}
+.goal .arc{transition:stroke-dashoffset .6s cubic-bezier(.3,.7,.2,1),stroke .4s}
+.sc-card{display:flex;flex-direction:column;gap:14px}
+.sc-top{display:flex;gap:18px;align-items:center}
+.sc-big{font-size:52px;font-weight:600;letter-spacing:-.04em;line-height:1}
+.sc-big small{font-size:16px;color:var(--tx3);font-weight:400}
+.sc-top b{font-size:15px}.sc-top p{font-size:12.5px;color:var(--tx2);line-height:1.5;margin-top:4px}
+.sc-l{display:flex;justify-content:space-between;font-size:13px}.sc-l b{font-weight:600;font-variant-numeric:tabular-nums}
+.sc-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.07);margin:6px 0 4px;overflow:hidden}
+.sc-bar i{display:block;height:100%;border-radius:5px;transition:width .8s cubic-bezier(.3,.7,.2,1)}
+.sc-row small{font-size:11.5px;color:var(--tx3)}
+.sc-note{font-size:11px;color:var(--tx3);border-top:1px solid var(--line);padding-top:10px}
+.sc-mini{display:inline-flex;align-items:baseline;gap:2px}
+.sc-mini b{font-size:30px!important}.sc-mini small{font-size:12px;color:var(--tx3)}
+.sc-mini.up b{color:var(--good)}.sc-mini.mid b{color:var(--acc)}.sc-mini.dn b{color:var(--bad)}
+@media (min-width:1101px) and (max-height:780px){.sc-ring{width:38px;height:38px}.sc-ring>b{font-size:12px}}
+.sc-card{padding:18px 20px}

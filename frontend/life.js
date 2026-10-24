@@ -30,6 +30,7 @@ async function me() {
 $("#me").addEventListener("click", (e) => {
   const act = e.target.closest("[data-act]")?.dataset.act;
   if (act === "logout") return fetch("/api/auth/logout", { method: "POST" }).then(() => (location.href = "/login"));
+  if (act === "pro") return (location.href = "/pro");
   if (act === "security") { show("profil"); setTimeout(() => $("#security").scrollIntoView({ behavior: "smooth" }), 300); }
   $("#menu").classList.toggle("open", !act && !$("#menu").classList.contains("open"));
 });
@@ -137,11 +138,13 @@ function renderExtras() {
   const p = L.profile;
   $$(".lv").forEach((el) => { el.querySelector("b").textContent = Math.round(p[el.dataset.k]).toLocaleString("fr-FR") + el.dataset.u; el.classList.toggle("ch", el.dataset.k in sim); });
   $("#lv-act").classList.toggle("on", Object.keys(sim).length > 0);
-  const g = L.goal;
-  if (g) {
-    const pc = Math.round(g.prob * 100), C = 2 * Math.PI * 22;
-    $("#goal").innerHTML = `<svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="arc" cx="27" cy="27" r="22" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - g.prob)}"/></svg><div><b>${pc} %</b> des séquences historiques te donnent ${eur(g.goal)} par mois à la retraite.<small>${g.extra ? `Pour y arriver en médiane : +${eur(g.extra)} d'épargne par mois.` : `Médiane : ${eur(g.median)} par mois.`}</small></div>`;
-    $("#goal .arc").style.stroke = g.prob >= 0.7 ? "var(--good)" : g.prob >= 0.4 ? "var(--acc)" : "var(--bad)";
+  const g = L.goal, sc = L.score;
+  if (sc) {
+    const C = 2 * Math.PI * 22, col = sc.score >= 80 ? "var(--good)" : sc.score >= 60 ? "var(--acc)" : "var(--bad)";
+    const sub = g && g.goal ? `${Math.round(g.prob * 100)} % de chances d'avoir ${eur(g.goal)} par mois à la retraite.${g.extra ? ` Il manque +${eur(g.extra)} d'épargne par mois.` : ""}` : sc.parts[0].text;
+    $("#goal").innerHTML = `<div class="sc-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="arc" cx="27" cy="27" r="22" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - sc.score / 100)}" style="stroke:${col}"/></svg><b>${sc.score}</b></div><div><b>Score Orbit ${sc.score}/100</b> · ${sc.headline.toLowerCase()}<small>${sub}</small></div>`;
+    $("#goal").title = "Voir le détail du Score Orbit";
+    if (!Object.keys(sim).length) renderScore(sc);
   } else $("#goal").innerHTML = "";
   const rows = L.scenarios.mid.rows, ret = p.retire_age - L.age0, ms = [];
   if (p.buy?.enabled) ms.push({ y: p.buy.in_years, l: "Achat du logement", k: "buy" });
@@ -153,6 +156,13 @@ function renderExtras() {
   const y80 = 80 - L.age0; if (y80 > 0 && y80 < L.horizon) ms.push({ y: y80, l: "80 ans", k: "80" });
   $("#ms").innerHTML = ms.map((m) => `<button class="m-${m.k}" data-y="${m.y}" style="left:calc(11px + (100% - 22px) * ${m.y / L.horizon})"><i></i>${m.l}</button>`).join("");
 }
+function renderScore(sc) {
+  const col = (v) => (v >= 0.8 ? "var(--good)" : v >= 0.5 ? "var(--acc)" : "var(--bad)");
+  $("#sc-body").innerHTML = `<div class="sc-top"><div class="sc-big">${sc.score}<small>/100</small></div><div><b>${sc.label}</b><p>Le Score Orbit résume en un chiffre si ton avenir financier tient debout. Il est recalculé à chaque changement de ton profil, à partir des mêmes 30 séquences de marché que tes projections. Pour progresser : ${sc.advice}.</p></div></div>
+    ${sc.parts.map((x) => `<div class="sc-row"><div class="sc-l"><span>${x.label}</span><b>${Math.round(x.pts)} / ${x.max}</b></div><div class="sc-bar"><i style="width:${(x.pts / x.max) * 100}%;background:${col(x.pts / x.max)}"></i></div><small>${x.text}</small></div>`).join("")}
+    <p class="sc-note">Calcul déterministe, sans IA : objectif 40 points, précaution 20, coups durs 20, frais 20. Ce n'est ni une notation de crédit ni une prédiction.</p>`;
+}
+$("#goal").addEventListener("click", () => { if (!L.score) return; show("profil"); setTimeout(() => $("#score-x").scrollIntoView({ behavior: "smooth" }), 300); });
 async function simulate() {
   const r = await fetch("/api/life/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ set: sim }) });
   if (!r.ok) return;

@@ -27,6 +27,7 @@
       <div class="hint" id="pw-hint" hidden>10 caractères minimum, avec des lettres et des chiffres.</div>
       <button class="primary" type="submit" id="go">Se connecter</button>
       <div class="swap"><span id="swap-t">Pas encore de compte ?</span> <a href="#" id="swap">Créer un compte</a></div>
+      <a class="pro-link" href="/pro">Espace conseiller bancaire →</a>
     </div>
     <div class="step" id="s-totp">
       <h2>Double authentification</h2>
@@ -70,7 +71,9 @@ async function locate() {
     return c[0] && c[0].centre ? { name: c[0].nom, lat: c[0].centre.coordinates[1], lng: c[0].centre.coordinates[0] } : null;
   } catch (e) { return null; }
 }
+const NEXT = new URLSearchParams(location.search).get("next") === "/pro" ? "/pro" : null;
 function enter() {
+  if (NEXT) return (location.href = NEXT);
   const go = () => { sessionStorage.setItem("orbit-landing", "1"); location.href = "/"; };
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return go();
   if (HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) {

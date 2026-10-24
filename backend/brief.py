@@ -3,7 +3,7 @@ import time
 
 from fpdf import FPDF
 
-from . import fees, immo, life, risks
+from . import fees, immo, life, risks, score
 
 REPL = {"€": " EUR", "−": "-", "→": "->", "≈": "~", "’": "'", "«": '"', "»": '"', "…": "...", "œ": "oe", " ": " ", " ": " ", "–": "-", "—": "-"}
 
@@ -63,6 +63,11 @@ def build(p, journal, stats):
     pdf.set_text_color(110, 110, 120)
     pdf.cell(W, 5, _t(f"Préparée par Orbit le {time.strftime('%d/%m/%Y')} · {p['first_name']} {p['last_name']}, {age} ans, {p['city']}"), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(20, 20, 25)
+
+    so = score.compute(p, r)
+    h(f"Score Orbit : {so['score']}/100 · {so['label']}")
+    for x in so["parts"]:
+        line(f"{x['label']} - {x['text']}", f"{round(x['pts'])} / {x['max']}")
 
     h("1. Ma situation")
     line("Revenu net mensuel", _e(p["income_month"]))

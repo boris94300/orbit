@@ -3,7 +3,7 @@ import re, statistics, time
 
 import httpx
 
-from . import fees, history, immo, life, llm, risks
+from . import fees, history, immo, life, llm, risks, score
 from .live import Run, _ecb, _eurostat, _yahoo, _fmt, _keur
 
 STEPS = {"savings_month": [50, 100, 150, 200, 300, 400, 600, 800], "retire_age": [1, 2, 3, 4, 5], "equity_share": [10, 20, 30]}
@@ -94,6 +94,7 @@ async def run(R: Run, p):
             base = _stats(p, g)
             await R.emit("analyste", "calc", f"Projection sur {len(h)} séquences historiques en {round((time.perf_counter() - t0) * 1000)} ms",
                          formula=f"patrimoine médian à {p['retire_age']} ans : {_keur(base['net'])} · revenu médian : {_fmt(base['med'], 0)} €/mois")
+            s["score"] = score.compute(p)["score"]
             s["projection"] = {"age": p["retire_age"], "net": base["net"], "med": base["med"], "prob": base["prob"], "goal": g}
             if g:
                 await R.emit("analyste", "result", f"Objectif {_fmt(g, 0)} €/mois : {round(base['prob'] * 100)} % de chances de l'atteindre")
@@ -177,7 +178,7 @@ async def run(R: Run, p):
             for f in found:
                 v, why = guard(p, f)
                 await R.emit("gardien", "check", f"{f['title']} : {'validée' if v == 'ok' else 'validée avec réserve' if v == 'warn' else 'bloquée'}", ok=v != "block", lines=why)
-                s["options"].append({"title": f["title"], "set": f["set"], "verdict": v, "why": why, "prob": f["st"]["prob"], "gain": f["st"]["net"] - base["net"], "med": f["st"]["med"]})
+                s["options"].append({"title": f["title"], "set": f["set"], "verdict": v, "why": why, "prob": f["st"]["prob"], "gain": f["st"]["net"] - base["net"], "med": f["st"]["med"], "score": score.compute(f["profile"])["score"]})
             s["risks"] = risks.assess(p, g, _stats)
             for r in s["risks"]:
                 await R.emit("gardien", "calc", f"Coup dur testé : {r['title'].lower()} à {r['age']} ans", formula=f"{r['how']} → {_eur(r['loss'])} à {r['at']} ans" + (f" · chances {round(r['prob0'] * 100)} % → {round(r['prob'] * 100)} %" if r.get("prob") is not None else ""), lines=[r["stat"]])

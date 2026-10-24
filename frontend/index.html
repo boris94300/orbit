@@ -6,7 +6,7 @@
 <title>Orbit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/life.css?v=5753347">
+<link rel="stylesheet" href="/static/life.css?v=2824660">
 <script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js"}}</script>
 <script src="/static/vendor/d3.min.js"></script>
 <script src="/static/vendor/gsap.min.js"></script>
@@ -23,7 +23,7 @@
     <button data-v="profil">Profil</button>
   </nav>
   <div class="me" id="me"><span id="me-name"></span><span class="ini" id="me-ini"></span>
-    <div class="menu" id="menu"><div class="m-mail" id="me-mail"></div><button data-act="security">Sécurité du compte</button><button data-act="logout">Se déconnecter</button></div>
+    <div class="menu" id="menu"><div class="m-mail" id="me-mail"></div><button data-act="pro">Espace conseiller</button><button data-act="security">Sécurité du compte</button><button data-act="logout">Se déconnecter</button></div>
   </div>
 </header>
 
@@ -126,6 +126,10 @@
     <div class="p-wrap">
       <div class="p-head"><h2>Mon profil</h2><p>Ces informations restent sur ton compte. Elles servent uniquement à calculer tes projections.</p></div>
       <form id="p-form" autocomplete="off"></form>
+      <div class="p-group" id="score-x">
+        <div class="p-gt">Score Orbit</div>
+        <div class="p-card sc-card" id="sc-body"></div>
+      </div>
       <div class="p-group" id="security">
         <div class="p-gt">Sécurité</div>
         <div class="p-card" id="sec-body"></div>
@@ -135,10 +139,10 @@
   </section>
 </main>
 <footer class="foot" id="foot"></footer>
-<script type="module" src="/static/life.js?v=5753347"></script>
-<script type="module" src="/static/profile.js?v=5753347"></script>
-<script type="module" src="/static/choices.js?v=5753347"></script>
-<script type="module" src="/static/agents.js?v=5753347"></script>
+<script type="module" src="/static/life.js?v=2824660"></script>
+<script type="module" src="/static/profile.js?v=2824660"></script>
+<script type="module" src="/static/choices.js?v=2824660"></script>
+<script type="module" src="/static/agents.js?v=2824660"></script>
 <script>
 if (sessionStorage.getItem("orbit-landing") || document.prerendering) {
   const ov = document.createElement("div"); ov.id = "landing"; document.body.appendChild(ov);
