@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import brief, advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, pro, score, team
+from . import brief, advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, pro, score, team, pension, projects, transmission, budget
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -205,6 +205,40 @@ def advisor_brief(req: Request):
     p = auth.get_profile(u)
     pdf = brief.build(life.sanitize(p, life.BLANK), p.get("journal") or [], team._stats)
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="orbit-rendez-vous-banque.pdf"'})
+
+
+@app.get("/api/pension")
+def api_pension(req: Request, start: int = 22, growth: float = 1.0, retire: int = 0):
+    p = auth.get_profile(_me(req))
+    r = life.project(life.merge(p, {"retire_age": retire}) if retire else p)
+    inc = r["incomes"][len(r["incomes"]) // 2]
+    return pension.estimate(p, max(14, min(40, start)), max(0, min(3, growth)) / 100, retire or None, inc)
+
+
+@app.post("/api/projects/preview")
+async def api_projects(req: Request):
+    p = auth.get_profile(_me(req))
+    return projects.preview(p, (await req.json()).get("projects") or [])
+
+
+@app.get("/api/transmission")
+def api_transmission(req: Request, children: int = -1, age: int = 85, av: float = 0, donation: float = 0):
+    p = auth.get_profile(_me(req))
+    n = p.get("children", 2) if children < 0 else max(0, min(6, children))
+    return transmission.estimate(p, life.project(p), n, max(60, min(100, age)), max(0, min(100, av)) / 100, max(0, min(131865, donation)))
+
+
+@app.post("/api/budget")
+async def api_budget(req: Request):
+    p = auth.get_profile(_me(req))
+    try:
+        res = budget.analyze((await req.json()).get("csv") or "", p["savings_month"])
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    r0, r1 = life.project(p), life.project(life.merge(p, {"savings_month": p["savings_month"] + 100}))
+    res["per_eur"] = (r1["scenarios"]["mid"]["rows"][r1["ref"]]["net"] - r0["scenarios"]["mid"]["rows"][r0["ref"]]["net"]) / 100
+    res["retire_age"] = p["retire_age"]
+    return res
 
 
 @app.get("/api/score")

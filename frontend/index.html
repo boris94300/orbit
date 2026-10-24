@@ -6,8 +6,8 @@
 <title>Orbit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="/static/persist.js?v=1"></script>
-<link rel="stylesheet" href="/static/life.css?v=2824762">
+<script src="/static/persist.js?v=2826479"></script>
+<link rel="stylesheet" href="/static/life.css?v=2826479">
 <script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js"}}</script>
 <script src="/static/vendor/d3.min.js"></script>
 <script src="/static/vendor/gsap.min.js"></script>
@@ -20,6 +20,8 @@
   <nav id="tabs">
     <button data-v="vie" class="on">Ma vie</button>
     <button data-v="choix">Mes choix</button>
+    <button data-v="avenir">Mon avenir</button>
+    <button data-v="mois">Mon mois</button>
     <button data-v="agents">Agents</button>
     <button data-v="profil">Profil</button>
   </nav>
@@ -88,6 +90,16 @@
     <div class="dr-back" id="dr-back"></div>
     <aside class="drawer" id="c-drawer"></aside>
   </section>
+  <section class="view" id="v-avenir">
+    <aside class="c-list" id="av-list">
+      <div class="c-head">Mon avenir</div>
+      <button data-a="retraite" class="on"><b>Ma retraite réelle</b><span>Ce que l'État te versera, et le reste</span></button>
+      <button data-a="projets"><b>Mes projets</b><span>Ta frise de vie, projet par projet</span></button>
+      <button data-a="transmettre"><b>Transmettre</b><span>Héritage, assurance-vie et donations</span></button>
+    </aside>
+    <div class="c-main av-main" id="av-main"></div>
+  </section>
+  <section class="view" id="v-mois"><div class="mo-wrap" id="mo"></div></section>
   <section class="view" id="v-agents">
   <canvas id="ag-orbs"></canvas>
   <div class="ag-head">
@@ -140,10 +152,12 @@
   </section>
 </main>
 <footer class="foot" id="foot"></footer>
-<script type="module" src="/static/life.js?v=2824762"></script>
-<script type="module" src="/static/profile.js?v=2824762"></script>
-<script type="module" src="/static/choices.js?v=2824762"></script>
-<script type="module" src="/static/agents.js?v=2824762"></script>
+<script type="module" src="/static/life.js?v=2826479"></script>
+<script type="module" src="/static/profile.js?v=2826479"></script>
+<script type="module" src="/static/choices.js?v=2826479"></script>
+<script type="module" src="/static/avenir.js?v=2826479"></script>
+<script type="module" src="/static/mois.js?v=2826479"></script>
+<script type="module" src="/static/agents.js?v=2826479"></script>
 <script>
 if (sessionStorage.getItem("orbit-landing") || document.prerendering) {
   const ov = document.createElement("div"); ov.id = "landing"; document.body.appendChild(ov);

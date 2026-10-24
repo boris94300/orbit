@@ -6,7 +6,7 @@
 <title>Orbit · Espace conseiller</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="/static/persist.js?v=1"></script>
+<script src="/static/persist.js?v=2826479"></script>
 <script src="/static/vendor/gsap.min.js"></script>
 <style>
 :root{--bg:#050506;--tx:#f5f5f7;--tx2:#a1a1a6;--tx3:#6e6e73;--line:rgba(255,255,255,.08);--card:rgba(255,255,255,.035);--acc:#8ab4ff;--good:#7fd1a8;--bad:#ff9f6b;
@@ -38,7 +38,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .cl:hover{background:var(--card)}.cl.on{background:rgba(255,255,255,.06);border-color:var(--line)}
 .cl b{font-weight:500;font-size:14px}.cl small{display:block;font-size:12px;color:var(--tx3);margin-top:2px}
 .tag{font-size:10.5px;color:var(--acc);border:1px solid rgba(138,180,255,.35);border-radius:10px;padding:1px 6px;margin-left:6px;vertical-align:1px}
-.dots{display:flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--bad)}.dots i.immo{background:var(--acc)}
+.dots{display:flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--bad)}.dots i.immo,.dots i.projets{background:var(--acc)}.dots i.transmission{background:#c9a7ff}.dots i.budget{background:var(--good)}
 .ring{position:relative;width:44px;height:44px}
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4}.ring .arc{stroke-linecap:round}
@@ -63,7 +63,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .pt small{font-size:11.5px;color:var(--tx3)}
 .al{display:grid;grid-template-columns:8px 1fr auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
 .al:first-of-type{border-top:0}
-.al>i{width:8px;height:8px;border-radius:50%;background:var(--bad);margin-top:5px}.al>i.immo{background:var(--acc)}
+.al>i{width:8px;height:8px;border-radius:50%;background:var(--bad);margin-top:5px}.al>i.immo,.al>i.projets{background:var(--acc)}.al>i.transmission{background:#c9a7ff}.al>i.budget{background:var(--good)}
+.pj{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:8px 0;border-top:1px solid var(--line)}.pj:first-of-type{border-top:0}
+.pj em{font-style:normal;font-size:12.5px}.pj .ok{color:var(--good)}.pj .tendu{color:var(--acc)}.pj .credit{color:var(--bad)}
+.fig small{display:block;font-size:11.5px;color:var(--tx3);margin-top:2px}
 .al b{font-size:14px;font-weight:500}.al p{font-size:12.5px;color:var(--tx2);margin-top:2px}.al em{display:block;font-style:normal;font-size:12.5px;color:var(--tx);margin-top:6px}
 .al .gain{color:var(--good);font-size:13px;font-weight:600;white-space:nowrap}
 .none{font-size:13px;color:var(--tx3)}
@@ -100,7 +103,7 @@ const $ = (s) => document.querySelector(s);
 const nf = (v) => Math.round(v).toLocaleString("fr-FR");
 const keur = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " M€" : nf(v / 1000) + " k€");
 const col = (s) => (s >= 80 ? "var(--good)" : s >= 60 ? "var(--acc)" : "var(--bad)");
-const KIND = { frais: "Frais élevés", precaution: "Précaution insuffisante", prevoyance: "Peu protégés", retraite: "Retraite menacée", immo: "Projets immobiliers" };
+const KIND = { frais: "Frais élevés", precaution: "Précaution insuffisante", prevoyance: "Peu protégés", retraite: "Retraite menacée", immo: "Projets immobiliers", projets: "Projets à financer", transmission: "Transmission", budget: "Épargne sous-exploitée" };
 const ring = (s) => { const C = 2 * Math.PI * 22; return `<div class="ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="arc" cx="27" cy="27" r="22" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - s / 100)}" style="stroke:${col(s)}"/></svg><span>${s}</span></div>`; };
 let D, cur = "boris", filter = null;
 
@@ -130,6 +133,11 @@ function renderDetail() {
       <div class="fig"><span>Complément visé</span><b>${c.goal ? nf(c.goal) + " €/mois" : "—"}</b></div>
       <div class="fig"><span>Chances d'y arriver</span><b>${Math.round(c.prob * 100)} %</b></div>
       <div class="fig"><span>Frais d'ici la retraite</span><b>${keur(c.fees)}</b></div></div></div>
+    <div class="sec"><h3>Vie et patrimoine</h3><div class="figs">
+      <div class="fig"><span>Pension de l'État à ${c.pension_age} ans</span><b>${nf(c.pension)} €/mois</b><small>${Math.round(c.repl * 100)} % du dernier salaire, ${Math.round(c.repl_all * 100)} % avec son épargne</small></div>
+      <div class="fig"><span>Droits de succession estimés</span><b>${keur(c.trans.tax)}</b><small>${c.trans.children} enfant${c.trans.children > 1 ? "s" : ""} · ${c.trans.saving > 1000 ? keur(c.trans.saving) + " évitables" : "rien à optimiser"}</small></div>
+      <div class="fig"><span>Capacité d'épargne réelle</span><b>${c.budget ? nf(c.budget.capacity) + " €/mois" : "—"}</b><small>${c.budget ? `relevés partagés · abonnements ${nf(c.budget.subs_total)} €/mois` : "relevés non partagés"}</small></div></div>
+      ${c.projects.length ? `<div style="margin-top:12px">${c.projects.map((x) => `<div class="pj"><span>${x.label} · ${x.age} ans</span><em class="${x.s}">${x.t}</em></div>`).join("")}</div>` : `<p class="none" style="margin-top:10px">Aucun projet de vie déclaré.</p>`}</div>
     <div class="sec"><h3>Score Orbit · ${c.score}/100</h3><div class="parts">${c.parts.map((x) => `<div class="pt"><div class="l"><span>${x.label}</span><b>${Math.round(x.pts)} / ${x.max}</b></div><div class="bar"><i data-w="${(x.pts / x.max) * 100}" style="background:${col((x.pts / x.max) * 100)}"></i></div><small>${x.text}</small></div>`).join("")}</div></div>
     <div class="sec"><h3>Actions recommandées</h3>${c.flags.length ? c.flags.map((f) => `<div class="al"><i class="${f.k}"></i><div><b>${f.t}</b><p>${f.d}</p><em>→ ${f.a}</em></div>${f.gain ? `<span class="gain">+${keur(f.gain)}</span>` : "<span></span>"}</div>`).join("") : `<p class="none">Aucune alerte : un point annuel suffit.</p>`}</div>
     <div class="sec"><h3>Décisions du client avec ses agents</h3>${c.journal.length ? c.journal.slice().reverse().map((e) => `<div class="jr"><span>${e.title}</span><span class="${e.ok ? "ok" : "no"}">${e.ok ? `Acceptée · ${e.gain >= 0 ? "+" : ""}${keur(e.gain)}${e.score ? ` · score ${e.score[0]} → ${e.score[1]}` : ""}` : "Refusée"}</span></div>`).join("") + (ok.length ? `<p class="none" style="margin-top:8px">Total validé par le client : ${keur(c.accepted)}. Chaque décision a été confirmée par le client, rien n'est appliqué sans lui.</p>` : "") : `<p class="none">${c.live ? "Aucune décision pour l'instant. Elles apparaissent ici dès que le client accepte ou refuse une solution de ses agents." : "Client fictif : pas d'historique de décisions."}</p>`}</div>`;

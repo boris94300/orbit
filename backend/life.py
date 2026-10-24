@@ -47,11 +47,13 @@ def _path(p, seq, start_year, horizon):
     fz = fees.annual(p) if p.get("fees", True) else {"ter": 0.0, "orders": 0.0, "sub": 0.0}
     paid = 0.0
     shs = list(p.get("shocks") or []) + ([p["shock"]] if p.get("shock") else [])
+    prj = p.get("projects") or [] if p.get("use_projects", True) else []
+    credits = []
     paid_in = cash + eq
     for k in range(horizon + 1):
         age = age0 + k
         fin = cash + eq
-        rows.append({"net": (fin + home - debt) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx, "fees": paid, "paid": max(0.0, paid_in),
+        rows.append({"net": (fin + home - debt - sum(c["bal"] for c in credits)) / idx, "credit": sum(c["bal"] for c in credits) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx, "fees": paid, "paid": max(0.0, paid_in),
                      "rent": (p["rent_month"] if renting else 0), "withdraw": withdraw / 12 / idx if withdraw else 0})
         if k == horizon:
             break
@@ -66,6 +68,16 @@ def _path(p, seq, start_year, horizon):
             home, debt = price, price - buy["down"] * idx
             pay = _payment(debt, buy["rate"], buy["years"])
             loan_left, renting = buy["years"], False
+        for pr in prj:
+            if age == pr["age"] and pr.get("cost"):
+                need = pr["cost"] * idx
+                take = max(0.0, min(need, cash + eq - reserve * idx * 0.5))
+                paid_in -= take / idx
+                fromc = min(cash, take)
+                cash, eq = cash - fromc, eq - (take - fromc)
+                if need - take > 1:
+                    bal = need - take
+                    credits.append({"bal": bal, "pay": bal * 0.05 / (1 - 1.05 ** -5), "left": 5})
         for sh in shs:
             if age == sh["age"] and sh.get("split"):
                 cash, eq, paid_in = cash * (1 - sh["split"]), eq * (1 - sh["split"]), paid_in * (1 - sh["split"])
@@ -77,6 +89,13 @@ def _path(p, seq, start_year, horizon):
             flow -= (p["savings_month"] + sh.get("drain", 0)) * 12 * idx * over
             if sh.get("cost") and age >= sh["age"]:
                 flow -= sh["cost"] * 12 * idx
+        for pr in prj:
+            if pr.get("monthly") and pr["age"] <= age < pr["age"] + pr.get("years", 0):
+                flow -= pr["monthly"] * 12 * idx
+        for c in credits:
+            if c["left"] > 0:
+                flow -= c["pay"]
+                c["bal"], c["left"] = max(0.0, c["bal"] * 1.05 - c["pay"]), c["left"] - 1
         if working:
             paid_in += flow / idx
             cost = (fz["orders"] + fz["sub"]) * idx
@@ -143,6 +162,28 @@ def sanitize(p, base=None):
         out["buy"]["enabled"] = False
     age0 = 2026 - out["birth_year"]
     out["retire_age"] = max(out["retire_age"], min(age0 + 1, 75))
+    if isinstance(p.get("projects"), list):
+        out["projects"] = clean_projects(p["projects"], age0)
+    if "children" in p:
+        out["children"] = int(_num(p["children"], 0, 6, 0))
+    if isinstance(p.get("budget"), dict):
+        b = p["budget"]
+        out["budget"] = {k: _num(b.get(k), -1e6, 1e6, 0) for k in ("income", "spend", "capacity", "subs_total")}
+        out["budget"]["months"] = int(_num(b.get("months"), 0, 60, 0))
+    return out
+
+
+KINDS = ("voiture", "enfant", "voyage", "mariage", "etudes", "entreprise", "travaux", "autre")
+
+
+def clean_projects(lst, age0):
+    out = []
+    for i, x in enumerate(lst[:8]):
+        if not isinstance(x, dict):
+            continue
+        out.append({"id": str(x.get("id") or i)[:20], "kind": x.get("kind") if x.get("kind") in KINDS else "autre",
+                    "label": str(x.get("label") or "Projet").strip()[:40], "age": int(_num(x.get("age"), age0, END_AGE, age0 + 5)),
+                    "cost": _num(x.get("cost"), 0, 5e6, 0), "monthly": _num(x.get("monthly"), 0, 20000, 0), "years": int(_num(x.get("years"), 0, 30, 0))})
     return out
 
 
