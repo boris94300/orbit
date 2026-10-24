@@ -4,7 +4,7 @@ import copy
 from . import history
 
 DEMO = {
-    "first_name": "Camille", "last_name": "Moreau", "birth_year": 1994, "city": "Créteil",
+    "first_name": "Boris", "last_name": "Moreau", "birth_year": 2005, "city": "Créteil",
     "income_month": 3400, "savings_month": 450, "cash": 18400, "invested": 16000,
     "equity_share": 60, "retire_age": 64, "goal_month": 1800, "housing": "locataire", "rent_month": 1150,
     "home_value": 0, "loan_remaining": 0, "loan_payment": 0,

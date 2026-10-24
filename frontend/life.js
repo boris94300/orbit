@@ -193,7 +193,7 @@ async function today() {
   const d = await r.json();
   $("#td-list").innerHTML = d.items.map((i) => `<div class="td"><span>${i.label}<small>${i.src}</small></span><b>${i.value}</b>${i.effect != null ? `<em class="${i.effect < 0 ? "dn" : "up"}">${i.effect < 0 ? "−" : "+"}${eur(Math.abs(i.effect))} ${i.note}</em>` : `<em>${i.note}</em>`}</div>`).join("");
   if (!window.Globe) return;
-  mini = mini || Globe()($("#mini-globe")).width(132).height(132).backgroundColor("rgba(0,0,0,0)").showAtmosphere(false).showGlobe(false)
+  mini = mini || Globe()($("#mini-globe")).width($("#mini-globe").clientWidth || 96).height($("#mini-globe").clientWidth || 96).backgroundColor("rgba(0,0,0,0)").showAtmosphere(false).showGlobe(false)
     .hexPolygonResolution(2).hexPolygonMargin(0.35).hexPolygonColor(() => "rgba(170,190,230,.55)")
     .pointAltitude(0.02).pointRadius(2.4).pointColor((p) => (p.chg >= 0 ? "#7fd1a8" : "#ff9f6b"))
     .ringColor((p) => () => (p.chg >= 0 ? "rgba(127,209,168,.6)" : "rgba(255,159,107,.6)")).ringMaxRadius(6).ringPropagationSpeed(2).ringRepeatPeriod(1600);

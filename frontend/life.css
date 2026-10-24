@@ -245,8 +245,9 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
 .lv-act.on{opacity:1;pointer-events:auto;transform:none}
 .lv-act span{color:var(--acc);margin-right:auto}
 .lv-act button:not(.primary-sm){color:var(--tx3)}
-.today{position:absolute;right:0;top:26px;display:flex;gap:12px;align-items:center;z-index:2;max-width:400px}
-.td-g{width:132px;height:132px;flex:none;opacity:.9}
+.today{position:absolute;right:0;top:18px;display:flex;flex-direction:row-reverse;gap:14px;align-items:flex-start;z-index:2;width:250px}
+.today>div:last-child{min-width:0;flex:1}
+.td-g{position:absolute;right:0;top:calc(100% + 10px);width:96px;height:96px;flex:none;opacity:.9}
 .td{display:grid;grid-template-columns:1fr auto;gap:0 10px;font-size:12.5px;padding:4px 0}
 .td span small{color:var(--tx3);font-size:10.5px;margin-left:6px}
 .td b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
@@ -390,7 +391,8 @@ main{position:fixed;top:56px;left:0;right:0;bottom:0}
   .story{max-width:none}
   .levers{order:2;position:static;width:auto;display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
   .levers .lv-t,.levers .goal,.levers .lv-act{grid-column:1/-1}
-  .today{order:3;position:static;max-width:none}
+  .today{order:3;position:static;max-width:none;width:auto;flex-direction:row;align-items:center}
+  .td-g{position:static}
   .timeline{order:4;position:sticky;bottom:0;background:var(--bg);padding:8px 0 10px;z-index:4;margin-top:auto}
   .ms-card{position:fixed;left:16px;right:16px;bottom:130px;width:auto}
   #v-agents.on{overflow-y:auto}
