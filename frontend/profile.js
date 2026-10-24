@@ -11,6 +11,10 @@ const GROUPS = [
     ["cash", "Épargne disponible (livrets, compte)", "number", "€"], ["invested", "Placements (PEA, assurance-vie, PER…)", "number", "€"],
     ["equity_share", "Part investie en actions", "range", "%", { min: 0, max: 100, step: 5 }], ["retire_age", "Âge de départ à la retraite", "number", "ans", { min: 50, max: 75 }],
   ]],
+  ["Où tu investis", [
+    ["broker", "Établissement et support", "select", "", { opts: [["banque", "Fonds de ma banque (agence)"], ["av_ligne", "Assurance-vie en ligne (ETF)"], ["fortuneo", "Fortuneo · Starter (ETF sur PEA)"], ["degiro", "DEGIRO · ETF sélection principale"], ["degiro_actions", "DEGIRO · actions Euronext Paris"]] }],
+    ["tool", "Outil d'analyse payant", "select", "", { opts: [["aucun", "Aucun"], ["tv_essential", "TradingView Essential · 14,95 €/mois"], ["tv_plus", "TradingView Plus · 34,95 €/mois"], ["tv_premium", "TradingView Premium · 69,95 €/mois"]] }],
+  ]],
   ["Logement", [
     ["housing", "Situation", "seg", "", { opts: [["locataire", "Locataire"], ["proprietaire", "Propriétaire"], ["heberge", "Hébergé"]] }],
     ["rent_month", "Loyer mensuel", "number", "€", { show: (p) => p.housing === "locataire" }],
@@ -34,6 +38,7 @@ function field([k, label, type, suf, o = {}]) {
   const v = get(k), id = "pf-" + k.replace(".", "-");
   let ctl;
   if (type === "seg") ctl = `<div class="p-seg" data-k="${k}">${o.opts.map(([val, t]) => `<button type="button" data-val="${val}" class="${v === val ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  else if (type === "select") ctl = `<div class="p-in"><select id="${id}" data-k="${k}">${o.opts.map(([val, t]) => `<option value="${val}" ${v === val ? "selected" : ""}>${t}</option>`).join("")}</select></div>`;
   else if (type === "toggle") ctl = `<button type="button" class="p-tog ${v ? "on" : ""}" data-k="${k}" aria-pressed="${!!v}"><i></i></button>`;
   else if (type === "range") ctl = `<div class="p-range"><input type="range" id="${id}" data-k="${k}" min="${o.min}" max="${o.max}" step="${o.step}" value="${v}"><output>${v} %</output></div>`;
   else ctl = `<div class="p-in"><input id="${id}" data-k="${k}" type="${type}" value="${v ?? ""}" ${o.min != null ? `min="${o.min}"` : ""} ${o.max != null ? `max="${o.max}"` : ""} step="${o.step || (type === "number" ? 1 : "")}">${suf ? `<span>${suf}</span>` : ""}</div>`;
@@ -58,7 +63,7 @@ function touch() {
 }
 $("#p-form").addEventListener("input", (e) => {
   const k = e.target.dataset.k; if (!k) return;
-  const v = e.target.type === "text" ? e.target.value : e.target.value === "" ? 0 : +e.target.value;
+  const v = e.target.type === "text" || e.target.tagName === "SELECT" ? e.target.value : e.target.value === "" ? 0 : +e.target.value;
   set(k, v);
   if (e.target.type === "range") e.target.nextElementSibling.textContent = v + " %";
   touch();

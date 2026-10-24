@@ -88,34 +88,37 @@
     <aside class="drawer" id="c-drawer"></aside>
   </section>
   <section class="view" id="v-agents">
-  <div class="a-top">
+  <canvas id="ag-orbs"></canvas>
+  <div class="ag-head">
     <div>
       <h2>Ton équipe d'agents</h2>
-      <p>Cinq agents veillent sur ton avenir. Le premier surveille le monde, le deuxième calcule ce que ça change pour toi, le troisième cherche des solutions, le quatrième les contrôle. Et c'est toi qui décides.</p>
+      <p>Cinq agents veillent sur ta vie financière : ils observent, calculent, cherchent, protègent et t'expliquent. Toi, tu décides.</p>
     </div>
     <div class="a-act">
       <div class="a-impact" id="a-impact"></div>
       <button class="primary-sm" id="a-run">Lancer l'analyse</button>
     </div>
   </div>
-  <div class="a-grid">
-    <div class="a-left">
-      <svg class="a-sky" id="a-sky" viewBox="0 0 300 300"></svg>
-      <div class="a-say" id="a-say">Lance l'analyse : les agents se passent le travail autour de toi.</div>
-      <ul class="a-team" id="a-team"></ul>
-    </div>
-    <div class="a-feed">
-      <div class="a-feed-h"><span>Ce que font les agents, en direct</span><label class="a-tg"><input type="checkbox" id="a-tech"> Détail technique</label></div>
-      <div class="a-log simple" id="a-log"><div class="a-empty">Lance l'analyse pour voir l'équipe travailler.</div></div>
-    </div>
-    <div class="a-right">
-      <aside class="a-out" id="a-out"></aside>
-      <form class="a-chat" id="a-chat" autocomplete="off">
-        <div class="a-chat-h">Pose ta question au Conseiller IA <em id="a-mode"></em></div>
-        <div class="a-msgs" id="a-msgs"></div>
-        <div class="a-sugg" id="a-sugg"></div>
-        <div class="a-in"><input id="a-q" placeholder="Ex. : puis-je acheter à 300 000 € dans 2 ans ?" maxlength="300"><button class="primary-sm">Envoyer</button></div>
-      </form>
+  <div class="ag-body">
+    <ul class="ag-team" id="a-team"></ul>
+    <div class="ag-main">
+      <div class="ag-bar">
+        <div class="ag-tabs" id="ag-tabs"><button data-t="res" class="on">Résultats</button><button data-t="live">En direct<i id="ag-live"></i></button><button data-t="chat">Conseiller IA</button><span class="ag-k"></span></div>
+        <div class="ag-say" id="a-say"></div>
+      </div>
+      <div class="ag-pane on" id="p-res"><div class="ag-out" id="a-out"></div></div>
+      <div class="ag-pane" id="p-live">
+        <div class="a-feed-h"><span>Chaque appel, chaque donnée reçue, chaque calcul, en temps réel</span><label class="a-tg"><input type="checkbox" id="a-tech"> Détail technique</label></div>
+        <div class="a-log simple" id="a-log"><div class="a-empty">Lance l'analyse pour voir l'équipe travailler.</div></div>
+      </div>
+      <div class="ag-pane" id="p-chat">
+        <form class="a-chat" id="a-chat" autocomplete="off">
+          <div class="a-chat-h">Pose ta question au Conseiller <em id="a-mode"></em></div>
+          <div class="a-msgs" id="a-msgs"></div>
+          <div class="a-sugg" id="a-sugg"></div>
+          <div class="a-in"><input id="a-q" placeholder="Ex. : puis-je acheter à 300 000 € dans 2 ans ?" maxlength="300"><button class="primary-sm">Envoyer</button></div>
+        </form>
+      </div>
     </div>
   </div>
 </section>

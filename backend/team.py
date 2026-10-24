@@ -1,9 +1,9 @@
 """L'équipe d'agents : Vigie, Analyste, Stratège, Gardien, Conseiller. Chiffres déterministes, IA seulement pour rédiger."""
-import statistics, time
+import re, statistics, time
 
 import httpx
 
-from . import history, life, llm
+from . import fees, history, immo, life, llm, risks
 from .live import Run, _ecb, _eurostat, _yahoo, _fmt, _keur
 
 STEPS = {"savings_month": [50, 100, 150, 200, 300, 400, 600, 800], "retire_age": [1, 2, 3, 4, 5], "equity_share": [10, 20, 30]}
@@ -99,13 +99,45 @@ async def run(R: Run, p):
                 await R.emit("analyste", "result", f"Objectif {_fmt(g, 0)} €/mois : {round(base['prob'] * 100)} % de chances de l'atteindre")
             target = 0.75 if base["prob"] < 0.75 else 0.9
             s["target"] = target
-            if not g or base["prob"] >= 0.999:
-                await R.emit("analyste", "handoff", "Objectif déjà sécurisé dans tous les scénarios. Rien à optimiser.", to="stratege")
-            else:
-                await R.emit("analyste", "handoff", f"{round(base['prob'] * 100)} % de chances seulement. Trouve comment passer à {round(target * 100)} %, avec le moins d'efforts.", to="stratege")
-                # Stratège
-                await R.emit("stratege", "start", f"Je teste des combinaisons pour atteindre {round(target * 100)} % de chances")
-                found, tries = [], 0
+            secured = not g or base["prob"] >= target
+            await R.emit("analyste", "handoff", (f"Objectif sécurisé à {round(base['prob'] * 100)} %. Cherche ce qui coûte de l'argent à {name} et ce qu'il peut s'offrir." if secured
+                         else f"{round(base['prob'] * 100)} % de chances seulement. Trouve comment passer à {round(target * 100)} %, avec le moins d'efforts."), to="stratege")
+            # Stratège
+            found, tries = [], 0
+            await R.emit("stratege", "start", "J'examine tes frais, tes enveloppes, l'immobilier de ta ville et tes leviers")
+            fz = fees.annual(p)
+            await R.emit("stratege", "calc", f"Frais actuels · {fz['broker']}", formula=f"{_fmt(p['savings_month'] * p['equity_share'] / 100, 0)} €/mois investis → {_eur(-fz['orders'])}/an d'ordres + {_fmt(fz['ter'] * 100)} %/an sur l'encours" + (f" + {_eur(-fz['sub'])}/an d'abonnement" if fz["sub"] else ""), lines=[fz["note"], f"source : {fz['src']}"])
+            proj = life.project(p)
+            paid = proj["scenarios"]["mid"]["rows"][proj["ref"]]["fees"]
+            alts = []
+            for k, br in fees.BROKERS.items():
+                if k in (p.get("broker"), "degiro_actions"):
+                    continue
+                q = life.merge(p, {"broker": k})
+                st = _stats(q, g)
+                tries += 1
+                alts.append((st["net"] - base["net"], k, br, st, q))
+                await R.emit("stratege", "try", f"{br['name']} → {_keur(st['net'])} à {p['retire_age']} ans ({_eur(st['net'] - base['net'])})", ok=st["net"] > base["net"] + 5000)
+            alts.sort(key=lambda x: -x[0])
+            s["fees"] = {"broker": fz["broker"], "note": fz["note"], "src": fz["src"], "paid": paid, "sub": fz["sub"], "orders": fz["orders"], "ter": fz["ter"],
+                         "alts": [{"name": br["name"], "gain": d, "note": br["note"], "src": br["src"]} for d, k, br, st, q in alts], "cfd": fees.CFD_WARNING, "sources": fees.SOURCES}
+            if p.get("tool", "aucun") != "aucun":
+                q = life.merge(p, {"tool": "aucun"})
+                st = _stats(q, g)
+                found.append({"lever": "tool", "set": {"tool": "aucun"}, "profile": q, "st": st, "title": f"Résilier {fees.TOOLS[p['tool']]['name']}"})
+            if alts and alts[0][0] > 5000:
+                d, k, br, st, q = alts[0]
+                found.append({"lever": "broker", "set": {"broker": k}, "profile": q, "st": st, "title": f"Passer à : {br['name']}"})
+            await R.emit("stratege", "result", f"Tes frais te coûteront {_keur(paid)} d'ici {p['retire_age']} ans" + (f" · {_keur(alts[0][0])} récupérables" if alts and alts[0][0] > 5000 else ""))
+            if p["housing"] == "locataire":
+                im = await immo.lookup(R, c, "stratege", p["city"])
+                if im:
+                    cap = immo.capacity(p, im["med"])
+                    await R.emit("stratege", "calc", f"Capacité d'achat à {im['city']}", formula=f"mensualité max 35 % × {_fmt(p['income_month'], 0)} € = {_fmt(cap['pay'], 0)} € → prêt {_keur(cap['loan'])} sur {cap['years']} ans à {_fmt(cap['rate'])} %",
+                                 lines=[f"apport mobilisable {_keur(cap['down'])} (précaution de 3 mois gardée), frais de notaire 7,5 %", f"prix médian {_fmt(im['med'], 0)} €/m² sur {im['n']} ventes d'appartements en {im['year']}"])
+                    s["immo"] = dict(im, **cap)
+                    await R.emit("stratege", "result", f"À {im['city']}, tu peux viser environ {_fmt(cap['m2'], 0)} m² ({_keur(cap['price'])}) au prix médian de {_fmt(im['med'], 0)} €/m²")
+            if not secured:
                 for k, steps in STEPS.items():
                     for d in steps:
                         v = p[k] + d
@@ -121,28 +153,38 @@ async def run(R: Run, p):
                             break
                     else:
                         await R.emit("stratege", "calc", f"Levier « {k.replace('_', ' ')} » insuffisant à lui seul")
-                sav = next((f for f in found if f["lever"] == "savings_month"), None)
-                if sav and sav["d"] >= 100:
-                    for d in [x for x in STEPS["savings_month"] if x < sav["d"]]:
-                        q = life.merge(p, {"savings_month": p["savings_month"] + d, "retire_age": p["retire_age"] + 1})
-                        st = _stats(q, g)
-                        tries += 1
-                        ok = st["prob"] >= target
-                        await R.emit("stratege", "try", f"Combiné : +{d} €/mois et 1 an plus tard → {round(st['prob'] * 100)} %", ok=ok)
-                        if ok:
-                            found.append({"lever": "mix", "set": {"savings_month": p["savings_month"] + d, "retire_age": p["retire_age"] + 1}, "profile": q, "st": st, "title": f"+{d} €/mois et partir 1 an plus tard"})
-                            break
-                await R.emit("stratege", "result", f"{tries} combinaisons testées, {len(found)} solution{'s' if len(found) > 1 else ''} retenue{'s' if len(found) > 1 else ''}")
-                await R.emit("stratege", "handoff", "Voici mes solutions. Vérifie qu'elles sont sans risque avant de les proposer.", to="gardien")
-                # Gardien
-                await R.emit("gardien", "start", "Je vérifie chaque solution : budget, profil de risque, endettement, précaution")
-                for f in found:
-                    v, why = guard(p, f)
-                    await R.emit("gardien", "check", f"{f['title']} : {'validée' if v == 'ok' else 'validée avec réserve' if v == 'warn' else 'bloquée'}", ok=v != "block", lines=why)
-                    s["options"].append({"title": f["title"], "set": f["set"], "verdict": v, "why": why, "prob": f["st"]["prob"], "gain": f["st"]["net"] - base["net"], "med": f["st"]["med"]})
-                n_ok = sum(o["verdict"] != "block" for o in s["options"])
-                await R.emit("gardien", "result", f"{n_ok} solution{'s' if n_ok > 1 else ''} autorisée{'s' if n_ok > 1 else ''}, {len(s['options']) - n_ok} bloquée{'s' if len(s['options']) - n_ok > 1 else ''}")
-                await R.emit("gardien", "handoff", "Solutions contrôlées. Explique-les simplement.", to="conseiller")
+            else:
+                best = next((f["profile"] for f in found if f["lever"] == "broker"), p)
+                early = None
+                for d in range(1, 6):
+                    if best["retire_age"] - d < 60:
+                        break
+                    q = life.merge(best, {"retire_age": best["retire_age"] - d})
+                    st = _stats(q, g)
+                    tries += 1
+                    ok = st["prob"] >= 0.9
+                    await R.emit("stratege", "try", f"Partir {d} an{'s' if d > 1 else ''} plus tôt{' (avec les frais réduits)' if best is not p else ''} → {round(st['prob'] * 100)} %", ok=ok)
+                    if not ok:
+                        break
+                    early = (d, q, st)
+                if early:
+                    d, q, st = early
+                    found.append({"lever": "early", "set": {"retire_age": q["retire_age"], "broker": q["broker"]}, "profile": q, "st": st, "title": f"Partir à {q['retire_age']} ans" + (" en réduisant tes frais" if q["broker"] != p["broker"] else "")})
+            await R.emit("stratege", "result", f"{tries} combinaisons testées, {len(found)} solution{'s' if len(found) > 1 else ''} retenue{'s' if len(found) > 1 else ''}")
+            await R.emit("stratege", "handoff", "Voici mes solutions. Vérifie qu'elles sont sans risque, et teste les coups durs de la vie.", to="gardien")
+            # Gardien
+            await R.emit("gardien", "start", "Je vérifie chaque solution, puis je teste les coups durs de la vie sur ta trajectoire")
+            for f in found:
+                v, why = guard(p, f)
+                await R.emit("gardien", "check", f"{f['title']} : {'validée' if v == 'ok' else 'validée avec réserve' if v == 'warn' else 'bloquée'}", ok=v != "block", lines=why)
+                s["options"].append({"title": f["title"], "set": f["set"], "verdict": v, "why": why, "prob": f["st"]["prob"], "gain": f["st"]["net"] - base["net"], "med": f["st"]["med"]})
+            s["risks"] = risks.assess(p, g, _stats)
+            for r in s["risks"]:
+                await R.emit("gardien", "calc", f"Coup dur testé : {r['title'].lower()} à {r['age']} ans", formula=f"{r['how']} → {_eur(r['loss'])} à {r['at']} ans" + (f" · chances {round(r['prob0'] * 100)} % → {round(r['prob'] * 100)} %" if r.get("prob") is not None else ""), lines=[r["stat"]])
+            worst = min(s["risks"], key=lambda r: r["loss"]) if s["risks"] else None
+            n_ok = sum(o["verdict"] != "block" for o in s["options"])
+            await R.emit("gardien", "result", f"{n_ok} solution{'s' if n_ok > 1 else ''} autorisée{'s' if n_ok > 1 else ''}" + (f" · coup dur le plus lourd : {worst['title'].lower()} ({_keur(worst['loss'])})" if worst else ""))
+            await R.emit("gardien", "handoff", "Solutions contrôlées et risques chiffrés. Explique-les simplement.", to="conseiller")
 
             # Conseiller
             await R.emit("conseiller", "start", "Je rédige ta synthèse en langage clair")
@@ -170,10 +212,13 @@ def _facts(p, s):
     out = [f"À {pr.get('age')} ans, ton patrimoine médian serait de {_keur(pr.get('net', 0))}, avec un revenu de {_fmt(pr.get('med', 0), 0)} € par mois."]
     if pr.get("goal"):
         out.append(f"Tu as {round(pr['prob'] * 100)} % de chances d'atteindre ton objectif de {_fmt(pr['goal'], 0)} € par mois.")
+    fz = s.get("fees")
+    if fz and fz["paid"] > 1000:
+        out.append(f"Tes frais de placement te coûteront environ {_keur(fz['paid'])} d'ici la retraite.")
     ok = [o for o in s["options"] if o["verdict"] != "block"]
     if ok:
         b = ok[0]
-        out.append(f"La solution la plus simple : {b['title'].lower()}, ce qui porte tes chances à {round(b['prob'] * 100)} %.")
+        out.append(f"La solution la plus utile : {b['title'][0].lower() + b['title'][1:]}, soit {_keur(b['gain'])} à la retraite et {round(b['prob'] * 100)} % de chances.")
     bl = [o for o in s["options"] if o["verdict"] == "block"]
     if bl:
         out.append(f"La piste « {bl[0]['title'].lower()} » a été écartée : {bl[0]['why'][0][0].lower() + bl[0]['why'][0][1:]}")
@@ -273,3 +318,49 @@ async def ask(p, question, history_msgs=None):
             trace.append({"tool": c["function"]["name"], "args": args, "result": res})
             msgs.append({"role": "tool", "name": c["function"]["name"], "content": json.dumps(res, ensure_ascii=False), "tool_call_id": c["id"]})
     return {"answer": "Je n'ai pas réussi à conclure, reformule ta question.", "trace": trace, "checked": True, "ms": 0}
+
+
+def _n(t):
+    t = t.replace("\u202f", " ").replace("\xa0", " ").lower()
+    m = re.search(r"(\d[\d ]*(?:[.,]\d+)?)\s*(k|m|000)?\s*(?:k€|€|euros?)", t)
+    if not m:
+        return None
+    v = float(m.group(1).replace(" ", "").replace(",", "."))
+    return v * 1000 if m.group(2) == "k" else v * 1e6 if m.group(2) == "m" else v
+
+
+def local(p, q):
+    """Sans modèle distant : détecte l'intention par règles, calcule avec le moteur, rédige une réponse sûre."""
+    t, trace = q.lower(), []
+    yrs = re.search(r"dans\s+(\d{1,2})\s*ans?", t)
+    age = re.search(r"(\d{2})\s*ans", t)
+    num = _n(q)
+    if re.search(r"achet|acqu|appartement|maison|immobili|logement", t) and num:
+        a = {"achat_prix": num if num > 20000 else num * 1000}
+        if yrs:
+            a["achat_dans_ans"] = int(yrs.group(1))
+        r = simulate(p, a)
+        trace.append({"tool": "simuler", "args": a, "result": r})
+        ans = (f"Pour un achat à {_fmt(a['achat_prix'], 0)} €, la mensualité serait de {_fmt(r['mensualite_credit_eur'], 0)} €, soit {r['taux_endettement_pct']} % de ton revenu "
+               f"({'au-delà' if r['taux_endettement_pct'] > 35 else 'en dessous'} de la limite de 35 %). Tes chances d'atteindre ton objectif de retraite passeraient de {r['chances_situation_actuelle_pct']} % à {r['chances_objectif_pct']} %. "
+               f"Contrôle du Gardien : {r['controle']}.")
+    elif re.search(r"combien|épargn|epargn|mettre de côté", t) and num and re.search(r"mois|retraite", t):
+        a = {"objectif_eur_mois": num}
+        r = needed(p, a)
+        trace.append({"tool": "epargne_necessaire", "args": a, "result": r})
+        ans = (f"Pour viser {_fmt(num, 0)} €/mois à la retraite avec {r['chances_pct']} % de chances, il faut épargner {_fmt(r['epargne_necessaire_eur_mois'], 0)} €/mois, "
+               f"soit {r['effort_supplementaire_eur_mois']:+d} € par rapport à aujourd'hui ({r['part_des_revenus_pct']} % de ton revenu). Contrôle du Gardien : {r['controle']}."
+               if r.get("epargne_necessaire_eur_mois") is not None else r.get("message") or r.get("erreur"))
+    elif re.search(r"retraite|partir|arrêter|arreter", t) and age and 50 <= int(age.group(1)) <= 75:
+        a = {"age_retraite": int(age.group(1))}
+        r = simulate(p, a)
+        trace.append({"tool": "simuler", "args": a, "result": r})
+        ans = (f"En partant à {a['age_retraite']} ans, ton revenu médian à la retraite serait de {_fmt(r['revenu_median_retraite_eur_mois'], 0)} €/mois, "
+               f"avec {r['chances_objectif_pct']} % de chances d'atteindre ton objectif (contre {r['chances_situation_actuelle_pct']} % aujourd'hui). Contrôle du Gardien : {r['controle']}.")
+    else:
+        r = simulate(p, {})
+        trace.append({"tool": "simuler", "args": {}, "result": r})
+        ans = (f"Aujourd'hui, ton revenu médian à la retraite est estimé à {_fmt(r['revenu_median_retraite_eur_mois'], 0)} €/mois et tu as {r['chances_objectif_pct']} % de chances "
+               f"d'atteindre ton objectif. Pose-moi une question sur un achat, ton épargne ou ton âge de départ pour que je la calcule.")
+    import json
+    return {"answer": ans, "trace": trace, "facts": _profile_text(p) + " Résultats du moteur : " + json.dumps([x["result"] for x in trace], ensure_ascii=False)}

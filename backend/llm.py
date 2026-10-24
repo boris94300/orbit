@@ -100,6 +100,6 @@ async def write(text):
         return await rewrite(text)
     try:
         d = await mistral([{"role": "system", "content": WRITE}, {"role": "user", "content": text}])
-        return d["choices"][0]["message"]["content"].strip()
+        return d["choices"][0]["message"]["content"].replace("**", "").replace("__", "").strip()
     except Exception:
         return None

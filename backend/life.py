@@ -1,20 +1,20 @@
 """Projection de vie : patrimoine année par année, rejouée sur chaque séquence historique de marché (1996-2025)."""
 import copy
 
-from . import history
+from . import fees, history
 
 DEMO = {
     "first_name": "Boris", "last_name": "Moreau", "birth_year": 2005, "city": "Créteil",
     "income_month": 3400, "savings_month": 450, "cash": 18400, "invested": 16000,
     "equity_share": 60, "retire_age": 64, "goal_month": 1800, "housing": "locataire", "rent_month": 1150,
-    "home_value": 0, "loan_remaining": 0, "loan_payment": 0,
+    "home_value": 0, "loan_remaining": 0, "loan_payment": 0, "broker": "banque", "tool": "aucun",
     "buy": {"enabled": False, "in_years": 3, "price": 285000, "down": 30000, "rate": 3.2, "years": 25},
 }
 BLANK = {
     "first_name": "", "last_name": "", "birth_year": 1995, "city": "",
     "income_month": 2500, "savings_month": 200, "cash": 5000, "invested": 0,
     "equity_share": 30, "retire_age": 64, "goal_month": 1500, "housing": "locataire", "rent_month": 800,
-    "home_value": 0, "loan_remaining": 0, "loan_payment": 0,
+    "home_value": 0, "loan_remaining": 0, "loan_payment": 0, "broker": "banque", "tool": "aucun",
     "buy": {"enabled": False, "in_years": 5, "price": 250000, "down": 25000, "rate": 3.2, "years": 25},
 }
 LIMITS = {"birth_year": (1930, 2008), "income_month": (0, 100000), "savings_month": (0, 20000), "cash": (0, 1e7),
@@ -44,10 +44,13 @@ def _path(p, seq, start_year, horizon):
     budget0 = p["savings_month"] + (p["rent_month"] if renting else pay)
     buy = p.get("buy") or {}
     idx, rows, cap_ret, withdraw = 1.0, [], None, 0.0
+    fz = fees.annual(p) if p.get("fees", True) else {"ter": 0.0, "orders": 0.0, "sub": 0.0}
+    paid = 0.0
+    sh = p.get("shock") or {}
     for k in range(horizon + 1):
         age = age0 + k
         fin = cash + eq
-        rows.append({"net": (fin + home - debt) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx,
+        rows.append({"net": (fin + home - debt) / idx, "fin": fin / idx, "home": home / idx, "debt": debt / idx, "fees": paid,
                      "rent": (p["rent_month"] if renting else 0), "withdraw": withdraw / 12 / idx if withdraw else 0})
         if k == horizon:
             break
@@ -61,9 +64,20 @@ def _path(p, seq, start_year, horizon):
             home, debt = price, price - buy["down"] * idx
             pay = _payment(debt, buy["rate"], buy["years"])
             loan_left, renting = buy["years"], False
+        if sh and age == sh["age"] and sh.get("split"):
+            cash, eq = cash * (1 - sh["split"]), eq * (1 - sh["split"])
         working = age < p["retire_age"]
         housing = (p["rent_month"] * 12 * idx) if renting else ((pay * 12 if debt > 1 else 0) + CHARGES * home)
         flow = (budget0 * 12 * idx - housing) if working else 0.0
+        if sh:
+            over = max(0.0, min(age + 1, sh["age"] + sh.get("pause", 0)) - max(age, sh["age"])) if working else 0.0
+            flow -= (p["savings_month"] + sh.get("drain", 0)) * 12 * idx * over
+            if sh.get("cost") and age >= sh["age"]:
+                flow -= sh["cost"] * 12 * idx
+        if working:
+            cost = (fz["orders"] + fz["sub"]) * idx
+            flow -= cost
+            paid += cost / idx
         if not working:
             if cap_ret is None:
                 cap_ret = (cash + eq) / idx
@@ -72,7 +86,8 @@ def _path(p, seq, start_year, horizon):
         w = p["equity_share"] / 100 if working else max(0.2, p["equity_share"] / 100 - 0.02 * (age - p["retire_age"]))
         total = cash + eq + flow
         safe = min(total, max(reserve * idx, (1 - w) * total))
-        cash, eq = safe * (1 + y["safe"]), (total - safe) * (1 + y["equity"])
+        paid += (total - safe) * (1 + y["equity"]) * fz["ter"] / idx
+        cash, eq = safe * (1 + y["safe"]), (total - safe) * (1 + y["equity"]) * (1 - fz["ter"])
         if debt > 1:
             interest = debt * buy.get("rate", 3.2) / 100 if loan_left != 999 else debt * 0.03
             debt = max(0.0, debt + interest - pay * 12)
@@ -100,6 +115,12 @@ def sanitize(p, base=None):
             out[k] = _num(p[k], lo, hi, out[k])
     for k in ("birth_year", "retire_age", "equity_share"):
         out[k] = int(out[k])
+    if p.get("broker") in fees.BROKERS:
+        out["broker"] = p["broker"]
+    if p.get("tool") in fees.TOOLS:
+        out["tool"] = p["tool"]
+    if "fees" in p:
+        out["fees"] = bool(p["fees"])
     if p.get("housing") in ("locataire", "proprietaire", "heberge"):
         out["housing"] = p["housing"]
     b = dict(out.get("buy") or BLANK["buy"])

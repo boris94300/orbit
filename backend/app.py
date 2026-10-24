@@ -4,10 +4,10 @@ import time
 import json
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, team
+from . import brief, advisor, agents, auth, feeds, horizon, life, live, llm, portfolio, team
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONT = os.path.join(ROOT, "frontend")
@@ -187,6 +187,14 @@ async def agents_decide(req: Request):
     return {"entry": entry, "journal": p["journal"]}
 
 
+@app.get("/api/advisor/brief")
+def advisor_brief(req: Request):
+    u = _me(req)
+    p = auth.get_profile(u)
+    pdf = brief.build(life.sanitize(p, life.BLANK), p.get("journal") or [], team._stats)
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="orbit-rendez-vous-banque.pdf"'})
+
+
 @app.get("/api/llm")
 def llm_mode():
     return {"mode": llm.mode()}
@@ -195,8 +203,10 @@ def llm_mode():
 @app.post("/api/advisor/ask")
 async def advisor_ask(req: Request):
     u, b = _me(req), await req.json()
-    if llm.mode() != "Mistral":
-        raise HTTPException(503, "Conseiller IA indisponible : clé Mistral non configurée")
+    p = life.sanitize(auth.get_profile(u), life.BLANK)
+    if b.get("local") or llm.mode() != "Mistral":
+        r = team.local(p, str(b.get("q", ""))[:600])
+        return dict(r, checked=True, ms=0, model="règles" if not b.get("local") else "local")
     try:
         return await team.ask(life.sanitize(auth.get_profile(u), life.BLANK), str(b.get("q", "")), b.get("history"))
     except Exception as e:  # noqa: BLE001

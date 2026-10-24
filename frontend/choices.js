@@ -3,7 +3,7 @@ const eur = (v) => Math.round(v).toLocaleString("fr-FR") + " €";
 const keur = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " M€" : Math.round(v / 1000).toLocaleString("fr-FR") + " k€");
 const lc = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 const COLORS = ["#a1a1a6", "#f5f5f7", "#8ab4ff", "#7fd1a8"];
-let P = null, C = null, kind = "logement", H = null, par = {}, timer, seq = 0;
+let SEL = null, P = null, C = null, kind = "logement", H = null, par = {}, timer, seq = 0;
 
 const DEFS = {
   logement: {
@@ -57,7 +57,7 @@ const DEFS = {
 $("#c-list").addEventListener("click", (e) => {
   const b = e.target.closest("[data-c]"); if (!b) return;
   $$("#c-list [data-c]").forEach((x) => x.classList.toggle("on", x === b));
-  kind = b.dataset.c; par = DEFS[kind].init(P); setup(); run();
+  kind = b.dataset.c; SEL = null; par = DEFS[kind].init(P); setup(); run();
 });
 
 function setup() {
@@ -133,7 +133,8 @@ const col = (i) => COLORS[(i + (C.variants.length === 2 ? 1 : 0)) % 4];
 
 function cards(first) {
   const base = C.variants[0], age = C.age0 + H, retired = age >= C.retire_age;
-  $("#c-cards").style.gridTemplateColumns = `repeat(${C.variants.length},1fr)`;
+  $("#c-cards").classList.add("wallet"); $("#c-cards").style.gridTemplateColumns = "";
+  if (SEL == null || SEL >= C.variants.length) SEL = C.variants.length - 1;
   const d = DEFS[kind], vs = d.variants(P);
   $("#c-cards").innerHTML = C.variants.map((v, i) => {
     const diff = v.mid[H] - base.mid[H];
@@ -141,9 +142,9 @@ function cards(first) {
       (kind === "logement" && vs[i].set.buy.enabled && P.buy.enabled && P.buy.price === par.price && P.buy.down === par.down) ||
       (vs[i].set.savings_month === P.savings_month && vs[i].set.savings_month != null) || (vs[i].set.equity_share === P.equity_share && vs[i].set.equity_share != null) ||
       (vs[i].set.retire_age === P.retire_age && vs[i].set.retire_age != null);
-    return `<div class="cc" style="--c:${col(i)}">
-      <div class="cc-l"><i></i>${v.label}</div>
-      <div class="cc-v" data-v="${v.mid[H]}">${keur(v.mid[H])}</div>
+    return `<div class="cc ${i === SEL ? "sel" : ""}" data-w="${i}" style="--c:${col(i)}">
+      <div class="cc-hd"><div class="cc-l"><i></i>${v.label}</div>
+      <div class="cc-v" data-v="${v.mid[H]}">${keur(v.mid[H])}</div></div><div class="cc-bd">
       <div class="cc-s">patrimoine net médian à ${age} ans</div>
       ${i ? `<div class="cc-d ${diff >= 0 ? "up" : "dn"}">${diff >= 0 ? "+" : "−"}${keur(Math.abs(diff))} par rapport à « ${lc(base.label)} »</div>` : `<div class="cc-d">Référence</div>`}
       <dl><dt>Si les marchés sont défavorables</dt><dd>${keur(v.bad[H])}</dd>
@@ -151,9 +152,9 @@ function cards(first) {
       <dt>Dont logement</dt><dd>${v.home[H] > 1 ? keur(v.home[H]) : "—"}</dd>
       <dt>Complément à la retraite</dt><dd>${v.income ? eur(v.income) + " / mois" : "—"}</dd></dl>
       <div class="cc-act">${current ? `<span class="cc-cur">Ton choix actuel</span>` : `<button class="cc-apply" data-i="${i}">Adopter ce choix</button>`}<button class="cc-more" data-i="${i}">Voir le détail →</button></div>
-    </div>`;
+    </div></div>`;
   }).join("");
-  if (first) gsap.from(".cc", { opacity: 0, y: 12, duration: 0.5, stagger: 0.07 });
+  stack(first);
   const best = C.variants.reduce((a, b) => (b.mid[H] > a.mid[H] ? b : a));
   const worst = C.variants.reduce((a, b) => (b.mid[H] < a.mid[H] ? b : a));
   const gap = best.mid[H] - worst.mid[H];
@@ -164,6 +165,22 @@ function cards(first) {
       (badBest !== best ? ` Dans les marchés défavorables, c'est en revanche « ${lc(badBest.label)} » qui résiste le mieux.` : "") +
       ` Calcul rejoué sur ${30} séquences de marché réelles (1996-2025), en euros d'aujourd'hui.`;
 }
+const PEEK = 62;
+function stack(first) {
+  const els = $$("#c-cards .cc"); if (!els.length) return;
+  const others = els.filter((el) => +el.dataset.w !== SEL), sel = els.find((el) => +el.dataset.w === SEL);
+  els.forEach((el) => el.classList.toggle("sel", el === sel));
+  const top = others.length * PEEK + 14;
+  others.forEach((el, k) => { gsap.to(el, { y: k * PEEK, scale: 1 - (others.length - k) * 0.012, zIndex: k + 1, height: PEEK + 30, duration: first ? 0 : 0.55, ease: "power3.inOut" }); });
+  const hh = sel.scrollHeight;
+  gsap.to(sel, { y: top, scale: 1, zIndex: 10, height: hh, duration: first ? 0 : 0.55, ease: "power3.inOut" });
+  $("#c-cards").style.height = top + hh + 6 + "px";
+  if (first) gsap.from(els, { y: (i) => 260 + i * 40, opacity: 0, rotationX: -18, transformPerspective: 900, duration: 0.8, stagger: 0.08, ease: "power3.out" });
+}
+$("#c-cards").addEventListener("click", (e) => {
+  const c = e.target.closest(".cc"); if (!c || e.target.closest("button")) return;
+  if (+c.dataset.w !== SEL) { SEL = +c.dataset.w; stack(false); }
+});
 $("#c-cards").addEventListener("click", async (e) => {
   const m = e.target.closest(".cc-more"); if (m) return detail(+m.dataset.i);
   const b = e.target.closest(".cc-apply"); if (!b) return;
