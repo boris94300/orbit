@@ -4,7 +4,7 @@ const keur = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("fr-FR", { ma
 const pct = (v) => Math.round(v * 100) + " %";
 const J = { "Content-Type": "application/json" };
 let P = null, sec = "retraite", loaded = false, timer, seq = 0;
-const st = { retraite: { start: 22, growth: 1, retire: null }, trans: { children: null, age: 85, av: 0, donation: 0 }, projects: null, dirty: false, presets: null };
+const st = { retraite: { start: 22, growth: 1, retire: null, bumpOn: false, bump: 200, every: 3 }, trans: { children: null, age: 85, av: 0, donation: 0 }, projects: null, dirty: false, presets: null };
 
 addEventListener("orbit:view", (e) => { if (e.detail === "avenir") open(); });
 addEventListener("orbit:profile", async () => { if (!loaded) return; P = await (await fetch("/api/profile")).json(); st.projects = null; st.dirty = false; st.retraite.retire = null; if ($("#v-avenir").classList.contains("on")) render(); });
@@ -26,9 +26,11 @@ async function saveProfile(patch) {
 /* ---------- Ma retraite réelle ---------- */
 function retraite(m) {
   const s = st.retraite; if (s.retire == null) s.retire = P.retire_age;
-  const F = { start: (v) => v + " ans", growth: (v) => (+v).toLocaleString("fr-FR") + " % / an", retire: (v) => v + " ans" };
+  const F = { start: (v) => v + " ans", growth: (v) => (+v).toLocaleString("fr-FR") + " % / an", retire: (v) => v + " ans", bump: (v) => "+" + eur(v), every: (v) => `${v} an${v > 1 ? "s" : ""}` };
   m.innerHTML = `<div class="c-top"><div><h2>Ma retraite réelle</h2><p>Ce que la retraite de l'État te versera, calculé avec les règles officielles, et ce que ton épargne y ajoute.</p></div></div>
-    <div class="c-params">${slider("start", "Début de carrière", 16, 30, 1, s.start, F.start)}${slider("growth", "Hausse de salaire", 0, 3, 0.5, s.growth, F.growth)}${slider("retire", "Départ à", 62, 70, 1, s.retire, F.retire)}</div>
+    <div class="c-params">${slider("start", "Début de carrière", 16, 30, 1, s.start, F.start)}${slider("growth", "Hausse de salaire", 0, 3, 0.5, s.growth, F.growth)}${slider("retire", "Départ à", 62, 70, 1, s.retire, F.retire)}
+      <button class="av-tg${s.bumpOn ? " on" : ""}" id="r-bump" type="button"><i></i>Augmentation ponctuelle</button></div>
+    <div class="c-params av-bump${s.bumpOn ? " on" : ""}" id="r-bumps">${slider("bump", "Hausse nette / mois", 50, 1000, 50, s.bump, F.bump)}${slider("every", "Tous les", 1, 10, 1, s.every, F.every)}<p class="av-bump-t" id="r-bump-t"></p></div>
     <div class="av-hero"><div class="av-big" id="r-total">—</div><div class="cc-s" id="r-sub"></div><div class="av-stack" id="r-stack"></div><div class="av-leg" id="r-leg"></div></div>
     <p class="av-say" id="r-say"></p>
     <div class="av-h">Ta pension de l'État selon l'âge de départ</div>
@@ -38,12 +40,17 @@ function retraite(m) {
     <p class="av-note" id="r-note"></p>`;
   enter(m);
   const set = (k, v) => { s[k] = v; $(`[data-k="${k}"]`, m).value = v; $(`[data-o="${k}"]`, m).textContent = F[k](v); };
-  $(".c-params", m).addEventListener("input", (e) => { const k = e.target.dataset.k; if (!k) return; set(k, +e.target.value); clearTimeout(timer); timer = setTimeout(go, 160); });
+  $$(".c-params", m).forEach((el) => el.addEventListener("input", (e) => { const k = e.target.dataset.k; if (!k) return; set(k, +e.target.value); clearTimeout(timer); timer = setTimeout(go, 160); }));
+  $("#r-bump", m).addEventListener("click", () => {
+    s.bumpOn = !s.bumpOn; $("#r-bump", m).classList.toggle("on", s.bumpOn); $("#r-bumps", m).classList.toggle("on", s.bumpOn);
+    if (s.bumpOn) gsap.fromTo("#r-bumps", { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" });
+    go();
+  });
   $("#r-bars", m).addEventListener("click", (e) => { const b = e.target.closest("[data-age]"); if (b) { set("retire", +b.dataset.age); go(); } });
   $("#r-cta", m).addEventListener("click", (e) => { if (e.target.closest("button")) saveProfile({ retire_age: s.retire }); });
   const go = async () => {
     const my = ++seq;
-    const d = await (await fetch(`/api/pension?start=${s.start}&growth=${s.growth}&retire=${s.retire}`)).json();
+    const d = await (await fetch(`/api/pension?start=${s.start}&growth=${s.growth}&retire=${s.retire}` + (s.bumpOn ? `&bump=${s.bump}&every=${s.every}` : ""))).json();
     if (my !== seq) return;
     const c = d.cur, tot = c.total + d.savings_income;
     count($("#r-total"), tot, (v) => eur(v) + " / mois");
@@ -53,6 +60,7 @@ function retraite(m) {
     gsap.fromTo("#r-stack i", { scaleX: 0 }, { scaleX: 1, transformOrigin: "left", duration: 0.7, stagger: 0.08, ease: "power3.out" });
     $("#r-leg").innerHTML = parts.map(([l, v, col]) => `<span><i style="background:${col}"></i>${l}<b>${eur(v)}</b></span>`).join("");
     $("#r-say").innerHTML = `Avec la seule retraite de l'État, tu toucherais <b>${pct(d.replacement)}</b> de ton dernier salaire (${eur(d.last_net)} nets). Avec ton épargne, tu montes à <b>${pct(tot / Math.max(1, d.last_net))}</b>.` +
+      (d.n_bumps ? ` Tes ${d.n_bumps} augmentations ponctuelles ajoutent <b class="up">+${eur(d.bump_salary)}</b> à ton dernier salaire et <b class="up">+${eur(d.bump_gain)}</b> à ta pension.` : "") +
       (c.allowed ? "" : ` <span class="dn">Avant ${d.legal} ans, partir n'est possible qu'avec une carrière longue (travail commencé avant 21 ans).</span>`);
     const mx = Math.max(...d.ages.map((a) => a.total));
     $("#r-bars").innerHTML = d.ages.map((a) => `<button data-age="${a.age}" class="${a.age === c.age ? "on" : ""}${a.allowed ? "" : " off"}"><em>${keur(a.total * 1000 / 1000).replace(" k€", "")}${a.total >= 1000 ? " k€" : ""}</em><i style="height:${(a.total / mx) * 100}%"></i><span>${a.age}</span></button>`).join("");
@@ -61,6 +69,7 @@ function retraite(m) {
     $("#r-facts").innerHTML = [["Trimestres validés", `${c.trims} / ${d.required}`],
       [c.missing ? "Décote" : c.surcote ? "Surcote" : "Taux plein", c.missing ? `${c.missing} trimestres manquants` : c.surcote ? `+${(c.surcote * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : "atteint"],
       ["Points Agirc-Arrco", c.points.toLocaleString("fr-FR")], ["Salaire annuel moyen retenu", eur(c.sam * 12)]].map(([l, v]) => `<div><span>${l}</span><b>${v}</b></div>`).join("");
+    $("#r-bump-t").textContent = s.bumpOn ? `Soit ${d.n_bumps} hausse${d.n_bumps > 1 ? "s" : ""} de ${eur(s.bump)} nets par mois d'ici ${c.age} ans, en plus des ${(+s.growth).toLocaleString("fr-FR")} % par an.` : "";
     $("#r-cta").innerHTML = s.retire !== P.retire_age ? `<button class="primary-sm">Utiliser ${s.retire} ans dans mes projections</button><span>Ton profil prévoit ${P.retire_age} ans. Rien ne change sans ton accord.</span>` : "";
     $("#r-note").textContent = `${d.hyp} ${d.sources}. Estimation indicative : ton relevé officiel est sur info-retraite.fr.`;
   };

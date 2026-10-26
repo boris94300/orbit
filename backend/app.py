@@ -208,11 +208,12 @@ def advisor_brief(req: Request):
 
 
 @app.get("/api/pension")
-def api_pension(req: Request, start: int = 22, growth: float = 1.0, retire: int = 0):
+def api_pension(req: Request, start: int = 22, growth: float = 1.0, retire: int = 0, bump: float = 0, every: int = 0):
     p = auth.get_profile(_me(req))
     r = life.project(life.merge(p, {"retire_age": retire}) if retire else p)
     inc = r["incomes"][len(r["incomes"]) // 2]
-    return pension.estimate(p, max(14, min(40, start)), max(0, min(3, growth)) / 100, retire or None, inc)
+    return pension.estimate(p, max(14, min(40, start)), max(0, min(3, growth)) / 100, retire or None, inc,
+                            max(0, min(3000, bump)), max(0, min(15, every)))
 
 
 @app.post("/api/projects/preview")
