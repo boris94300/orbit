@@ -11,8 +11,10 @@ from email.utils import parsedate_to_datetime
 
 import httpx
 
+from .paths import DATA
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SNAPSHOT = os.path.join(ROOT, "data", "snapshot.json")
+SNAPSHOT = os.path.join(DATA, "snapshot.json")
 UA = {"User-Agent": "Mozilla/5.0 (Orbit)"}
 
 INDICES = [

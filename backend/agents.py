@@ -7,9 +7,10 @@ import time
 import uuid
 
 from . import feeds, horizon, llm, portfolio
+from .paths import DATA
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AUDIT = os.path.join(ROOT, "data", "audit.jsonl")
+AUDIT = os.path.join(DATA, "audit.jsonl")
 
 AGENTS = [
     {"id": "veille", "name": "Veille", "role": "Collecte les flux et retient les événements matériels"},
