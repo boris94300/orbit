@@ -5,8 +5,10 @@ import os
 
 import httpx
 
+from .paths import DATA
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CACHE = os.path.join(ROOT, "data", "history.json")
+CACHE = os.path.join(DATA, "history.json")
 UA = {"User-Agent": "Mozilla/5.0"}
 # Taux du Livret A, moyenne annuelle pondérée par la durée d'application (taux réglementés, Banque de France).
 LIVRET_A = {1996: 3.6, 1997: 3.5, 1998: 3.25, 1999: 2.5, 2000: 2.6, 2001: 3.0, 2002: 3.0, 2003: 2.6, 2004: 2.25, 2005: 2.1,

@@ -9,10 +9,11 @@ from cryptography.fernet import Fernet, InvalidToken
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from . import life
+from .paths import DATA
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB = os.path.join(ROOT, "data", "orbit.db")
-KEYFILE = os.path.join(ROOT, "data", "secret.key")
+DB = os.path.join(DATA, "orbit.db")
+KEYFILE = os.path.join(DATA, "secret.key")
 COOKIE = "orbit_s"
 SESSION_AGE = 12 * 3600
 MAX_FAILS, LOCK_S = 5, 300
